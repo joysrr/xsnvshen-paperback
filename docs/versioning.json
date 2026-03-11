@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-03-11T08:00:08.649Z",
+  "buildTime": "2026-03-11T08:44:16.041Z",
   "sources": [
     {
       "id": "XiuShen",
@@ -11,7 +11,7 @@
       "version": "1.0.0",
       "icon": "icon.png",
       "websiteBaseURL": "https://m.xsnvshen.com",
-      "intents": 5
+      "intents": 21
     }
   ],
   "builtWith": {
