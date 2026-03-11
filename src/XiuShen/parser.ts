@@ -16,71 +16,69 @@ export interface AlbumDetail {
 
 const BASE_URL = "https://m.xsnvshen.com";
 
-// 解析列表頁，取得套圖列表
+function fixUrl(url: string): string {
+    if (!url) return "";
+    if (url.startsWith("//")) return "https:" + url;
+    return url;
+}
+
+// 解析列表頁
 export function parseAlbumList(html: string): AlbumItem[] {
     const $ = cheerio.load(html);
     const items: AlbumItem[] = [];
 
-    $("ul.pic-list li, .album-list li, li.pic-item").each(
-        (_: number, el: cheerio.Element) => {
-            const $el = $(el);
-            const link = $el.find("a").attr("href") || "";
-            const idMatch = link.match(/\/album\/(\d+)/);
-            const id = idMatch ? idMatch[1] : "";
-            const title = $el.find("p, .title, span").first().text().trim();
-            const cover =
-                $el.find("img").attr("src") ||
-                $el.find("img").attr("data-src") ||
-                "";
+    $("ul.list li").each((_: number, el: cheerio.Element) => {
+        const $el = $(el);
+        const link = $el.find("a").attr("href") || "";
+        const idMatch = link.match(/\/album\/(\d+)/);
+        const id = idMatch ? idMatch[1] : "";
+        const title = $el.find(".txtbts3").text().trim();
+        const cover = fixUrl($el.find("img").attr("src") || "");
 
-            if (id && title) {
-                items.push({ id, title, cover });
-            }
-        },
-    );
+        if (id && title) {
+            items.push({ id, title, cover });
+        }
+    });
 
     return items;
 }
 
-// 解析套圖詳情頁，取得圖片列表
+// 解析套圖詳情頁
 export function parseAlbumDetail(html: string): AlbumDetail {
     const $ = cheerio.load(html);
 
-    const title = $("h1, .album-title, title").first().text().trim();
-    const cover = $("img").first().attr("src") || "";
+    // 標題：優先 h1，fallback 到第一張圖的 alt
+    const title =
+        $("h1").first().text().trim() ||
+        $("p img.lazy").first().attr("alt") ||
+        "";
+
+    // 封面：第一張內容圖
+    const cover = fixUrl($("p img.lazy").first().attr("src") || "");
+
+    // 作者
     const author =
-        $(".model-name, .author, .girl-name").first().text().trim() ||
+        $(".model-name, .girl-name, .author").first().text().trim() ||
         "Unknown";
 
+    // 標籤
     const tags: string[] = [];
     $(".tags a, .tag-list a, .label a").each(
         (_: number, el: cheerio.Element) => {
-            tags.push($(el).text().trim());
+            const t = $(el).text().trim();
+            if (t) tags.push(t);
         },
     );
 
+    // 圖片：詳情頁的內容圖在 <p><img class='lazy'></p>
+    // thumb_600x900 是內容圖，thumb_205x308 是推薦縮圖，只取內容圖
     const images: string[] = [];
-    $("ul.pic-list img, .swiper-slide img, .photo-list img, #piclist img").each(
-        (_: number, el: cheerio.Element) => {
-            const src = $(el).attr("src") || $(el).attr("data-src") || "";
-            if (src) images.push(src);
-        },
-    );
-
-    // fallback：抓所有大圖
-    if (images.length === 0) {
-        $("img").each((_: number, el: cheerio.Element) => {
-            const src = $(el).attr("src") || $(el).attr("data-src") || "";
-            if (
-                src &&
-                src.includes("http") &&
-                !src.includes("logo") &&
-                !src.includes("icon")
-            ) {
-                images.push(src);
-            }
-        });
-    }
+    $("p img.lazy").each((_: number, el: cheerio.Element) => {
+        const src = fixUrl($(el).attr("src") || $(el).attr("data-src") || "");
+        if (src && src.includes("thumb_600x900")) {
+            images.push(src);
+        }
+    });
 
     return { title, cover, author, tags, images };
 }

@@ -22384,19 +22384,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = void 0;
 const cheerio = __importStar(require("cheerio"));
 const BASE_URL = "https://m.xsnvshen.com";
-// 解析列表頁，取得套圖列表
+function fixUrl(url) {
+    if (!url)
+        return "";
+    if (url.startsWith("//"))
+        return "https:" + url;
+    return url;
+}
+// 解析列表頁
 function parseAlbumList(html) {
     const $ = cheerio.load(html);
     const items = [];
-    $("ul.pic-list li, .album-list li, li.pic-item").each((_, el) => {
+    $("ul.list li").each((_, el) => {
         const $el = $(el);
         const link = $el.find("a").attr("href") || "";
         const idMatch = link.match(/\/album\/(\d+)/);
         const id = idMatch ? idMatch[1] : "";
-        const title = $el.find("p, .title, span").first().text().trim();
-        const cover = $el.find("img").attr("src") ||
-            $el.find("img").attr("data-src") ||
-            "";
+        const title = $el.find(".txtbts3").text().trim();
+        const cover = fixUrl($el.find("img").attr("src") || "");
         if (id && title) {
             items.push({ id, title, cover });
         }
@@ -22404,35 +22409,34 @@ function parseAlbumList(html) {
     return items;
 }
 exports.parseAlbumList = parseAlbumList;
-// 解析套圖詳情頁，取得圖片列表
+// 解析套圖詳情頁
 function parseAlbumDetail(html) {
     const $ = cheerio.load(html);
-    const title = $("h1, .album-title, title").first().text().trim();
-    const cover = $("img").first().attr("src") || "";
-    const author = $(".model-name, .author, .girl-name").first().text().trim() ||
+    // 標題：優先 h1，fallback 到第一張圖的 alt
+    const title = $("h1").first().text().trim() ||
+        $("p img.lazy").first().attr("alt") ||
+        "";
+    // 封面：第一張內容圖
+    const cover = fixUrl($("p img.lazy").first().attr("src") || "");
+    // 作者
+    const author = $(".model-name, .girl-name, .author").first().text().trim() ||
         "Unknown";
+    // 標籤
     const tags = [];
     $(".tags a, .tag-list a, .label a").each((_, el) => {
-        tags.push($(el).text().trim());
+        const t = $(el).text().trim();
+        if (t)
+            tags.push(t);
     });
+    // 圖片：詳情頁的內容圖在 <p><img class='lazy'></p>
+    // thumb_600x900 是內容圖，thumb_205x308 是推薦縮圖，只取內容圖
     const images = [];
-    $("ul.pic-list img, .swiper-slide img, .photo-list img, #piclist img").each((_, el) => {
-        const src = $(el).attr("src") || $(el).attr("data-src") || "";
-        if (src)
+    $("p img.lazy").each((_, el) => {
+        const src = fixUrl($(el).attr("src") || $(el).attr("data-src") || "");
+        if (src && src.includes("thumb_600x900")) {
             images.push(src);
+        }
     });
-    // fallback：抓所有大圖
-    if (images.length === 0) {
-        $("img").each((_, el) => {
-            const src = $(el).attr("src") || $(el).attr("data-src") || "";
-            if (src &&
-                src.includes("http") &&
-                !src.includes("logo") &&
-                !src.includes("icon")) {
-                images.push(src);
-            }
-        });
-    }
     return { title, cover, author, tags, images };
 }
 exports.parseAlbumDetail = parseAlbumDetail;
