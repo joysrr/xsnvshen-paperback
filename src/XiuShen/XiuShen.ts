@@ -351,9 +351,9 @@ export class XiuShen extends Source {
     // ──────────────────────────────────────────────
     // Cloudflare Bypass（讓 app 先取得 cookie）
     // ──────────────────────────────────────────────
-    override getCloudflareBypassRequest(): Request {
+    async getCloudflareBypassRequestAsync(): Promise<Request> {
         console.log(
-            `${TAG} getCloudflareBypassRequest: 取得 Cloudflare cookie`,
+            `${TAG} getCloudflareBypassRequestAsync: 取得 Cloudflare cookie`,
         );
         return App.createRequest({
             url: BASE_URL,

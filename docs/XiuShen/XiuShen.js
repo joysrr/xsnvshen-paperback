@@ -22442,8 +22442,8 @@ class XiuShen extends types_1.Source {
     // ──────────────────────────────────────────────
     // Cloudflare Bypass（讓 app 先取得 cookie）
     // ──────────────────────────────────────────────
-    getCloudflareBypassRequest() {
-        console.log(`${TAG} getCloudflareBypassRequest: 取得 Cloudflare cookie`);
+    async getCloudflareBypassRequestAsync() {
+        console.log(`${TAG} getCloudflareBypassRequestAsync: 取得 Cloudflare cookie`);
         return App.createRequest({
             url: BASE_URL,
             method: "GET",
