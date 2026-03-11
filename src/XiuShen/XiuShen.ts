@@ -1,14 +1,12 @@
 import {
     Chapter,
     ChapterDetails,
-    ChapterProviding,
-    HomePageSectionsProviding,
     HomeSection,
     PagedResults,
     Request,
     RequestManager,
     SearchRequest,
-    SearchResultsProviding,
+    Source,
     SourceInfo,
     SourceIntents,
     SourceManga,
@@ -38,12 +36,7 @@ export const XiuShenInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
 };
 
-export class XiuShen
-    implements
-        ChapterProviding,
-        HomePageSectionsProviding,
-        SearchResultsProviding
-{
+export class XiuShen extends Source {
     // ──────────────────────────────────────────────
     // RequestManagerProviding（必要）
     // ──────────────────────────────────────────────
