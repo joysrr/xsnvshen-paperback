@@ -21,7 +21,7 @@ import {
     buildDetailUrl,
 } from "./parser";
 
-const BASE_URL = "https://m.xsnvshen.com";
+const BASE_URL = "https://www.xsnvshen.com";
 
 export const XiuShenInfo: SourceInfo = {
     version: "1.0.0",
@@ -353,17 +353,16 @@ export class XiuShen extends Source {
     // ──────────────────────────────────────────────
     async getCloudflareBypassRequestAsync(): Promise<Request> {
         console.log(
-            `${TAG} getCloudflareBypassRequestAsync: 取得 Cloudflare cookie`,
+            `${TAG} getCloudflareBypassRequestAsync: 對圖片伺服器取得 CF cookie`,
         );
         return App.createRequest({
-            url: BASE_URL,
+            url: "https://img.xsnvshen.com/",
             method: "GET",
             headers: {
                 "User-Agent":
                     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
                     "Version/16.0 Mobile/15E148 Safari/604.1",
-                Referer: BASE_URL + "/",
             },
         });
     }

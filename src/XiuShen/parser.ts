@@ -14,7 +14,7 @@ export interface AlbumDetail {
     images: string[];
 }
 
-const BASE_URL = "https://m.xsnvshen.com";
+const BASE_URL = "https://www.xsnvshen.com";
 
 function fixUrl(url: string): string {
     if (!url) return "";

@@ -22199,7 +22199,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.XiuShen = exports.XiuShenInfo = void 0;
 const types_1 = require("@paperback/types");
 const parser_1 = require("./parser");
-const BASE_URL = "https://m.xsnvshen.com";
+const BASE_URL = "https://www.xsnvshen.com";
 exports.XiuShenInfo = {
     version: "1.0.0",
     name: "XiuShen",
@@ -22443,15 +22443,14 @@ class XiuShen extends types_1.Source {
     // Cloudflare Bypass（讓 app 先取得 cookie）
     // ──────────────────────────────────────────────
     async getCloudflareBypassRequestAsync() {
-        console.log(`${TAG} getCloudflareBypassRequestAsync: 取得 Cloudflare cookie`);
+        console.log(`${TAG} getCloudflareBypassRequestAsync: 對圖片伺服器取得 CF cookie`);
         return App.createRequest({
-            url: BASE_URL,
+            url: "https://img.xsnvshen.com/",
             method: "GET",
             headers: {
                 "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
                     "Version/16.0 Mobile/15E148 Safari/604.1",
-                Referer: BASE_URL + "/",
             },
         });
     }
@@ -22486,7 +22485,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = void 0;
 const cheerio = __importStar(require("cheerio"));
-const BASE_URL = "https://m.xsnvshen.com";
+const BASE_URL = "https://www.xsnvshen.com";
 function fixUrl(url) {
     if (!url)
         return "";
