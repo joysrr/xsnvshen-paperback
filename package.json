@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Paperback 0.8 source for xsnvshen.com",
   "scripts": {
-    "build": "paperback-cli bundle"
+    "build": "paperback-cli bundle && rm -rf docs && cp -r bundles docs"
   },
   "dependencies": {
     "@paperback/types": "^1.0.0-alpha.57",

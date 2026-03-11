@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-03-11T00:37:31.916Z",
+  "buildTime": "2026-03-11T02:30:55.686Z",
   "builtWith": {
     "toolchain": "1.0.0-alpha.57",
     "types": "1.0.0-alpha.57"
@@ -15,15 +15,12 @@
       "icon": "icon.png",
       "author": "LuLuLaLaHaHa",
       "authorWebsite": "https://github.com/joysrr",
-      "desc": "秀色女神寫真套圖來源",
       "description": "秀色女神寫真套圖來源",
       "contentRating": "ADULT",
       "websiteBaseURL": "https://m.xsnvshen.com",
       "language": "zh",
-      "intents": 39,
-      "id": "XiuShen",
-      "tags": [],
-      "website": "https://m.xsnvshen.com"
+      "intents": 5,
+      "id": "XiuShen"
     }
   ]
 }
