@@ -10,9 +10,7 @@ const info = {
     contentRating: ContentRating.ADULT,
     websiteBaseURL: "https://m.xsnvshen.com",
     language: "zh",
-    intents:
-        SourceIntents.CHAPTER_PROVIDING |
-        SourceIntents.DISCOVER_SECIONS_PROVIDING,
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
 };
 
 export default info;

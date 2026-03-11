@@ -6,6 +6,7 @@ import {
     Request,
     RequestManager,
     SearchRequest,
+    Source,
     SourceInfo,
     SourceIntents,
     SourceManga,
@@ -35,7 +36,7 @@ export const XiuShenInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
 };
 
-export class XiuShen {
+export class XiuShen extends Source {
     // ──────────────────────────────────────────────
     // RequestManagerProviding（必要）
     // ──────────────────────────────────────────────
