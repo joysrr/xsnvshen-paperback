@@ -262,3 +262,5 @@ chai/index.js:
      *)
   *)
 */
+
+var XiuShen = source.XiuShen;
