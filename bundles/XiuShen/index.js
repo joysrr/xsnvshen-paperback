@@ -22212,18 +22212,36 @@ exports.XiuShenInfo = {
     language: "zh",
     intents: types_1.SourceIntents.MANGA_CHAPTERS | types_1.SourceIntents.HOMEPAGE_SECTIONS,
 };
+const TAG = "[XiuShen]";
 class XiuShen extends types_1.Source {
     constructor() {
         super(...arguments);
         // ──────────────────────────────────────────────
-        // RequestManagerProviding（必要）
+        // RequestManager
         // ──────────────────────────────────────────────
         this.requestManager = App.createRequestManager({
             requestsPerSecond: 2,
             requestTimeout: 15000,
             interceptor: {
-                interceptRequest: async (request) => request,
-                interceptResponse: async (response) => response,
+                interceptRequest: async (request) => {
+                    // 加入完整瀏覽器 headers，模擬手機 Safari
+                    request.headers = Object.assign(Object.assign({}, request.headers), { "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
+                            "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
+                            "Version/16.0 Mobile/15E148 Safari/604.1", Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "zh-TW,zh;q=0.9", Referer: BASE_URL + "/", Connection: "keep-alive" });
+                    console.log(`${TAG} → ${request.method} ${request.url}`);
+                    return request;
+                },
+                interceptResponse: async (response) => {
+                    var _a, _b;
+                    console.log(`${TAG} ← HTTP ${response.status} ` +
+                        `${response.request.url} ` +
+                        `(${((_a = response.data) !== null && _a !== void 0 ? _a : "").length} bytes)`);
+                    // 偵測是否被重導向到登入頁或錯誤頁
+                    if (response.status !== 200) {
+                        console.error(`${TAG} 非 200 狀態碼！data preview: ${((_b = response.data) !== null && _b !== void 0 ? _b : "").substring(0, 300)}`);
+                    }
+                    return response;
+                },
             },
         });
     }
@@ -22231,6 +22249,8 @@ class XiuShen extends types_1.Source {
     // 首頁
     // ──────────────────────────────────────────────
     async getHomePageSections(sectionCallback) {
+        console.log(`${TAG} getHomePageSections: start`);
+        // 先送出空 section（顯示 loading 狀態）
         const section = App.createHomeSection({
             id: "latest",
             title: "最新套圖",
@@ -22238,36 +22258,64 @@ class XiuShen extends types_1.Source {
             containsMoreItems: true,
         });
         sectionCallback(section);
-        const request = App.createRequest({
-            url: (0, parser_1.buildListUrl)(1),
-            method: "GET",
-        });
-        const response = await this.requestManager.schedule(request, 1);
-        const items = (0, parser_1.parseAlbumList)(response.data);
-        section.items = items.map((item) => App.createPartialSourceManga({
-            mangaId: item.id,
-            image: item.cover,
-            title: item.title,
-        }));
-        sectionCallback(section);
-    }
-    async getViewMoreItems(homepageSectionId, metadata) {
-        var _a;
-        const page = ((_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1);
-        const request = App.createRequest({
-            url: (0, parser_1.buildListUrl)(page),
-            method: "GET",
-        });
-        const response = await this.requestManager.schedule(request, 1);
-        const items = (0, parser_1.parseAlbumList)(response.data);
-        return App.createPagedResults({
-            results: items.map((item) => App.createPartialSourceManga({
+        try {
+            const request = App.createRequest({
+                url: (0, parser_1.buildListUrl)(1),
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            if (!response.data) {
+                console.error(`${TAG} getHomePageSections: response.data is empty`);
+                return;
+            }
+            const items = (0, parser_1.parseAlbumList)(response.data);
+            console.log(`${TAG} getHomePageSections: parsed ${items.length} items`);
+            if (items.length === 0) {
+                console.warn(`${TAG} getHomePageSections: 0 items — selector 可能沒 match，檢查 parseAlbumList`);
+                // 印出前 500 字方便 debug
+                console.log(`${TAG} html preview: ${response.data.substring(0, 500)}`);
+                return;
+            }
+            section.items = items.map((item) => App.createPartialSourceManga({
                 mangaId: item.id,
                 image: item.cover,
                 title: item.title,
-            })),
-            metadata: items.length > 0 ? { page: page + 1 } : undefined,
-        });
+            }));
+            sectionCallback(section);
+            console.log(`${TAG} getHomePageSections: done`);
+        }
+        catch (e) {
+            console.error(`${TAG} getHomePageSections: ERROR`, e);
+        }
+    }
+    // ──────────────────────────────────────────────
+    // 載入更多
+    // ──────────────────────────────────────────────
+    async getViewMoreItems(homepageSectionId, metadata) {
+        var _a;
+        const page = ((_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1);
+        console.log(`${TAG} getViewMoreItems: section=${homepageSectionId} page=${page}`);
+        try {
+            const request = App.createRequest({
+                url: (0, parser_1.buildListUrl)(page),
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            const items = (0, parser_1.parseAlbumList)(response.data);
+            console.log(`${TAG} getViewMoreItems: parsed ${items.length} items (page ${page})`);
+            return App.createPagedResults({
+                results: items.map((item) => App.createPartialSourceManga({
+                    mangaId: item.id,
+                    image: item.cover,
+                    title: item.title,
+                })),
+                metadata: items.length > 0 ? { page: page + 1 } : undefined,
+            });
+        }
+        catch (e) {
+            console.error(`${TAG} getViewMoreItems: ERROR`, e);
+            return App.createPagedResults({ results: [] });
+        }
     }
     // ──────────────────────────────────────────────
     // 搜尋
@@ -22276,57 +22324,78 @@ class XiuShen extends types_1.Source {
         var _a, _b;
         const page = ((_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1);
         const keyword = (_b = query.title) !== null && _b !== void 0 ? _b : "";
-        const url = keyword
-            ? `${BASE_URL}/search/?k=${encodeURIComponent(keyword)}&p=${page}`
-            : (0, parser_1.buildListUrl)(page);
-        const request = App.createRequest({ url, method: "GET" });
-        const response = await this.requestManager.schedule(request, 1);
-        const items = (0, parser_1.parseAlbumList)(response.data);
-        return App.createPagedResults({
-            results: items.map((item) => App.createPartialSourceManga({
-                mangaId: item.id,
-                image: item.cover,
-                title: item.title,
-            })),
-            metadata: items.length > 0 ? { page: page + 1 } : undefined,
-        });
+        console.log(`${TAG} getSearchResults: keyword="${keyword}" page=${page}`);
+        try {
+            const url = keyword
+                ? `${BASE_URL}/search/?k=${encodeURIComponent(keyword)}&p=${page}`
+                : (0, parser_1.buildListUrl)(page);
+            const request = App.createRequest({ url, method: "GET" });
+            const response = await this.requestManager.schedule(request, 1);
+            const items = (0, parser_1.parseAlbumList)(response.data);
+            console.log(`${TAG} getSearchResults: parsed ${items.length} items`);
+            return App.createPagedResults({
+                results: items.map((item) => App.createPartialSourceManga({
+                    mangaId: item.id,
+                    image: item.cover,
+                    title: item.title,
+                })),
+                metadata: items.length > 0 ? { page: page + 1 } : undefined,
+            });
+        }
+        catch (e) {
+            console.error(`${TAG} getSearchResults: ERROR`, e);
+            return App.createPagedResults({ results: [] });
+        }
     }
     // ──────────────────────────────────────────────
     // 套圖詳情
     // ──────────────────────────────────────────────
     async getMangaDetails(mangaId) {
         var _a;
-        const request = App.createRequest({
-            url: (0, parser_1.buildDetailUrl)(mangaId),
-            method: "GET",
-        });
-        const response = await this.requestManager.schedule(request, 1);
-        const detail = (0, parser_1.parseAlbumDetail)(response.data);
-        const tagGroups = detail.tags.length > 0
-            ? [
-                App.createTagSection({
-                    id: "tags",
-                    label: "標籤",
-                    tags: detail.tags.map((t) => App.createTag({ id: t, label: t })),
+        console.log(`${TAG} getMangaDetails: mangaId=${mangaId}`);
+        try {
+            const request = App.createRequest({
+                url: (0, parser_1.buildDetailUrl)(mangaId),
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            const detail = (0, parser_1.parseAlbumDetail)(response.data);
+            console.log(`${TAG} getMangaDetails: title="${detail.title}" author="${detail.author}" tags=${detail.tags.length} images=${detail.images.length}`);
+            if (detail.images.length === 0) {
+                console.warn(`${TAG} getMangaDetails: 0 images — 檢查 parseAlbumDetail selector`);
+                console.log(`${TAG} html preview: ${response.data.substring(0, 500)}`);
+            }
+            const tagGroups = detail.tags.length > 0
+                ? [
+                    App.createTagSection({
+                        id: "tags",
+                        label: "標籤",
+                        tags: detail.tags.map((t) => App.createTag({ id: t, label: t })),
+                    }),
+                ]
+                : [];
+            return App.createSourceManga({
+                id: mangaId,
+                mangaInfo: App.createMangaInfo({
+                    image: detail.cover,
+                    titles: [detail.title],
+                    desc: "",
+                    status: "Completed",
+                    author: (_a = detail.author) !== null && _a !== void 0 ? _a : "",
+                    tags: tagGroups,
                 }),
-            ]
-            : [];
-        return App.createSourceManga({
-            id: mangaId,
-            mangaInfo: App.createMangaInfo({
-                image: detail.cover,
-                titles: [detail.title],
-                desc: "",
-                status: "Completed",
-                author: (_a = detail.author) !== null && _a !== void 0 ? _a : "",
-                tags: tagGroups,
-            }),
-        });
+            });
+        }
+        catch (e) {
+            console.error(`${TAG} getMangaDetails: ERROR`, e);
+            throw e;
+        }
     }
     // ──────────────────────────────────────────────
     // 章節列表
     // ──────────────────────────────────────────────
     async getChapters(mangaId) {
+        console.log(`${TAG} getChapters: mangaId=${mangaId}`);
         return [
             App.createChapter({
                 id: "all",
@@ -22340,17 +22409,33 @@ class XiuShen extends types_1.Source {
     // 章節圖片
     // ──────────────────────────────────────────────
     async getChapterDetails(mangaId, chapterId) {
-        const request = App.createRequest({
-            url: (0, parser_1.buildDetailUrl)(mangaId),
-            method: "GET",
-        });
-        const response = await this.requestManager.schedule(request, 1);
-        const detail = (0, parser_1.parseAlbumDetail)(response.data);
-        return App.createChapterDetails({
-            id: chapterId,
-            mangaId,
-            pages: detail.images,
-        });
+        console.log(`${TAG} getChapterDetails: mangaId=${mangaId} chapterId=${chapterId}`);
+        try {
+            const request = App.createRequest({
+                url: (0, parser_1.buildDetailUrl)(mangaId),
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            const detail = (0, parser_1.parseAlbumDetail)(response.data);
+            console.log(`${TAG} getChapterDetails: ${detail.images.length} pages`);
+            if (detail.images.length === 0) {
+                console.warn(`${TAG} getChapterDetails: 0 pages — 圖片將無法顯示`);
+                console.log(`${TAG} html preview: ${response.data.substring(0, 500)}`);
+            }
+            else {
+                console.log(`${TAG} getChapterDetails: first=${detail.images[0]}`);
+                console.log(`${TAG} getChapterDetails: last=${detail.images[detail.images.length - 1]}`);
+            }
+            return App.createChapterDetails({
+                id: chapterId,
+                mangaId,
+                pages: detail.images,
+            });
+        }
+        catch (e) {
+            console.error(`${TAG} getChapterDetails: ERROR`, e);
+            throw e;
+        }
     }
 }
 exports.XiuShen = XiuShen;

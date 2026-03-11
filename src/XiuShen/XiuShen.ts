@@ -47,14 +47,33 @@ export class XiuShen extends Source {
         requestTimeout: 15000,
         interceptor: {
             interceptRequest: async (request) => {
+                // 加入完整瀏覽器 headers，模擬手機 Safari
+                request.headers = {
+                    ...request.headers,
+                    "User-Agent":
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
+                        "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
+                        "Version/16.0 Mobile/15E148 Safari/604.1",
+                    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "zh-TW,zh;q=0.9",
+                    Referer: BASE_URL + "/",
+                    Connection: "keep-alive",
+                };
                 console.log(`${TAG} → ${request.method} ${request.url}`);
                 return request;
             },
             interceptResponse: async (response) => {
                 console.log(
-                    `${TAG} ← ${response.status} ${response.request.url} ` +
+                    `${TAG} ← HTTP ${response.status} ` +
+                        `${response.request.url} ` +
                         `(${(response.data ?? "").length} bytes)`,
                 );
+                // 偵測是否被重導向到登入頁或錯誤頁
+                if (response.status !== 200) {
+                    console.error(
+                        `${TAG} 非 200 狀態碼！data preview: ${(response.data ?? "").substring(0, 300)}`,
+                    );
+                }
                 return response;
             },
         },

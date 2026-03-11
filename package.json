@@ -4,6 +4,7 @@
   "description": "Paperback 0.8 source for xsnvshen.com",
   "repositoryName": "XiuShen Source",
   "scripts": {
+    "test:parser": "npx ts-node scripts/test-parser.ts",
     "build": "npx paperback bundle && rm -rf docs && cp -r bundles docs && node scripts/postbuild.js",
     "serve": "npx paperback serve",
     "test": "npx paperback test"
