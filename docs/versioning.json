@@ -1,22 +1,26 @@
 {
-  "buildTime": "2026-03-10T00:00:00.000Z",
+  "buildTime": "2026-03-11T00:37:31.916Z",
+  "builtWith": {
+    "toolchain": "1.0.0-alpha.57",
+    "types": "1.0.0-alpha.57"
+  },
+  "repository": {
+    "name": "Paperback Extension Repository",
+    "description": "Paperback 0.8 source for xsnvshen.com"
+  },
   "sources": [
     {
-      "id": "XiuShen",
-      "name": "XiuShen",
-      "author": "LuLuLaLaHaHa",
-      "desc": "秀色女神寫真套圖來源",
-      "website": "https://m.xsnvshen.com",
-      "contentRating": "ADULT",
       "version": "1.0.0",
+      "name": "XiuShen",
       "icon": "icon.png",
-      "tags": [],
+      "author": "LuLuLaLaHaHa",
+      "authorWebsite": "https://github.com/joysrr",
+      "description": "秀色女神寫真套圖來源",
+      "contentRating": "ADULT",
       "websiteBaseURL": "https://m.xsnvshen.com",
-      "intents": 39
+      "language": "zh",
+      "intents": 1,
+      "id": "XiuShen"
     }
-  ],
-  "builtWith": {
-    "toolchain": "0.8.7",
-    "types": "0.8.7"
-  }
+  ]
 }
