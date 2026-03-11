@@ -26,6 +26,8 @@ v.sources.forEach((s) => {
     const dir = `docs/${s.id}`;
     const src = path.join(dir, "source.js");
     const dst = path.join(dir, `${s.id}.js`);
+    // 同時也複製一份給 main.js
+    const mainDst = path.join(dir, "main.js");
 
     if (!fs.existsSync(src)) {
         console.warn(`⚠ ${src} not found, skipping`);
@@ -33,7 +35,8 @@ v.sources.forEach((s) => {
     }
 
     let content = fs.readFileSync(src, "utf8");
+    fs.copyFileSync(src, mainDst); // ← app 下載這個
     content += `\nvar ${s.id} = source.${s.id};\n`;
     fs.writeFileSync(dst, content);
-    console.log(`✔ Created ${dst}`);
+    console.log(`✔ Created ${dst} and main.js`);
 });
