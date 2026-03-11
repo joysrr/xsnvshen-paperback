@@ -33,7 +33,10 @@ export const XiuShenInfo: SourceInfo = {
     contentRating: ContentRating.ADULT,
     websiteBaseURL: BASE_URL,
     language: "zh",
-    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
+    intents:
+        SourceIntents.MANGA_CHAPTERS |
+        SourceIntents.HOMEPAGE_SECTIONS |
+        SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
 const TAG = "[XiuShen]";
@@ -343,5 +346,25 @@ export class XiuShen extends Source {
             console.error(`${TAG} getChapterDetails: ERROR`, e);
             throw e;
         }
+    }
+
+    // ──────────────────────────────────────────────
+    // Cloudflare Bypass（讓 app 先取得 cookie）
+    // ──────────────────────────────────────────────
+    override getCloudflareBypassRequest(): Request {
+        console.log(
+            `${TAG} getCloudflareBypassRequest: 取得 Cloudflare cookie`,
+        );
+        return App.createRequest({
+            url: BASE_URL,
+            method: "GET",
+            headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
+                    "Version/16.0 Mobile/15E148 Safari/604.1",
+                Referer: BASE_URL + "/",
+            },
+        });
     }
 }
