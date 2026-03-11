@@ -447,7 +447,7 @@ var _Sources = (() => {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.urlEncodeObject = exports.convertTime = exports.Source = void 0;
-      var Source2 = class {
+      var Source = class {
         constructor(cheerio) {
           this.cheerio = cheerio;
         }
@@ -464,7 +464,7 @@ var _Sources = (() => {
           return this.getSearchTags?.();
         }
       };
-      exports.Source = Source2;
+      exports.Source = Source;
       function convertTime(timeAgo) {
         let time;
         let trimmed = Number((/\d*/.exec(timeAgo) ?? [])[0]);
@@ -15482,9 +15482,8 @@ var _Sources = (() => {
     language: "zh",
     intents: import_types2.SourceIntents.MANGA_CHAPTERS | import_types2.SourceIntents.HOMEPAGE_SECTIONS
   };
-  var XiuShen = class extends import_types2.Source {
+  var XiuShen = class {
     constructor() {
-      super(...arguments);
       // ──────────────────────────────────────────────
       // RequestManagerProviding（必要）
       // ──────────────────────────────────────────────
