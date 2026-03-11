@@ -2,16 +2,17 @@
   "name": "xsnvshen-paperback",
   "version": "1.0.0",
   "description": "Paperback 0.8 source for xsnvshen.com",
+  "repositoryName": "XiuShen Source",
   "scripts": {
-    "build": "paperback-cli bundle && rm -rf docs && cp -r bundles docs && node scripts/postbuild.js"
+    "build": "paperback bundle && rm -rf docs && cp -r bundles docs && node scripts/postbuild.js"
   },
   "dependencies": {
-    "@paperback/types": "^1.0.0-alpha.57",
+    "@paperback/types": "^0.8.7",
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12"
   },
   "devDependencies": {
-    "@paperback/toolchain": "^1.0.0-alpha.57",
+    "@paperback/toolchain": "^0.8.7",
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.0.0",
     "typescript": "^4.9.5"

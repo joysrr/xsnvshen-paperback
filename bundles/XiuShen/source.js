@@ -15626,5 +15626,3 @@ var _Sources = (() => {
   return __toCommonJS(XiuShen_exports);
 })();
 this.Sources = _Sources; if (typeof exports === 'object' && typeof module !== 'undefined') {module.exports.Sources = this.Sources;}
-
-var XiuShen = source.XiuShen;
