@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-03-11T02:30:55.686Z",
+  "buildTime": "2026-03-11T02:40:09.753Z",
   "builtWith": {
     "toolchain": "1.0.0-alpha.57",
     "types": "1.0.0-alpha.57"
@@ -20,7 +20,8 @@
       "websiteBaseURL": "https://m.xsnvshen.com",
       "language": "zh",
       "intents": 5,
-      "id": "XiuShen"
+      "id": "XiuShen",
+      "desc": "秀色女神寫真套圖來源"
     }
   ]
 }
