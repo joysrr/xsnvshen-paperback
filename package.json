@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "description": "Paperback 0.8 source for xsnvshen.com",
   "scripts": {
-    "build": "tsc",
-    "serve": "node bundle.js"
+    "build": "paperback-cli bundle"
   },
   "dependencies": {
-    "@paperback/types": "~0.8.0",
+    "@paperback/types": "^1.0.0-alpha.57",
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12"
   },
   "devDependencies": {
+    "@paperback/toolchain": "^1.0.0-alpha.57",
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.0.0",
     "typescript": "^4.9.5"

@@ -1,15 +1,22 @@
 import {
-    Source,
+    BasicRateLimiter,
     Chapter,
     ChapterDetails,
-    HomeSection,
-    SearchRequest,
-    PagedResults,
-    SourceInfo,
+    ChapterProviding,
     ContentRating,
-    MangaUpdates,
-    HomeSectionType,
-    RequestManager,
+    DiscoverSection,
+    DiscoverSectionItem,
+    DiscoverSectionType,
+    MangaProviding,
+    PagedResults,
+    Request,
+    SearchFilter,
+    SearchQuery,
+    SearchResultItem,
+    SearchResultsProviding,
+    SourceIntents,
+    SourceManga,
+    TagSection,
 } from "@paperback/types";
 
 import {
@@ -17,84 +24,84 @@ import {
     parseAlbumDetail,
     buildListUrl,
     buildDetailUrl,
-    AlbumItem,
 } from "./parser";
 
 const BASE_URL = "https://m.xsnvshen.com";
 
-export const XiuShenInfo: SourceInfo = {
+export const XiuShenInfo = {
     version: "1.0.0",
     name: "XiuShen",
     icon: "icon.png",
-    author: "YourGitHubName",
-    authorWebsite: "https://github.com/YourGitHubName",
-    description: "秀色女神 - 寫真套圖來源",
+    author: "LuLuLaLaHaHa",
+    authorWebsite: "https://github.com/joysrr",
+    description: "秀色女神寫真套圖來源",
     contentRating: ContentRating.ADULT,
     websiteBaseURL: BASE_URL,
     language: "zh",
+    intents:
+        SourceIntents.CHAPTER_PROVIDING |
+        SourceIntents.DISCOVER_SECIONS_PROVIDING,
 };
 
-export class XiuShen extends Source {
-    readonly requestManager: RequestManager = App.createRequestManager({
-        requestsPerSecond: 2,
-        requestTimeout: 15000,
+export class XiuShen
+    implements MangaProviding, ChapterProviding, SearchResultsProviding
+{
+    globalRateLimiter = new BasicRateLimiter("ratelimiter", {
+        numberOfRequests: 2,
+        bufferInterval: 1,
+        ignoreImages: true,
     });
 
-    // ──────────────────────────────────────────────
-    // 首頁 Section
-    // ──────────────────────────────────────────────
-    async getHomePageSections(
-        sectionCallback: (section: HomeSection) => void,
-    ): Promise<void> {
-        const section = App.createHomeSection({
-            id: "latest",
-            title: "最新套圖",
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        sectionCallback(section);
-
-        const request = App.createRequest({
-            url: buildListUrl(1),
-            method: "GET",
-        });
-
-        const response = await this.requestManager.schedule(request, 1);
-        const items = parseAlbumList(response.data);
-
-        section.items = items.map((item) => this.albumToInfo(item));
-        sectionCallback(section);
+    async initialise(): Promise<void> {
+        // 可留空
     }
 
-    // 載入更多（翻頁）
-    async getViewMoreItems(
-        homepageSectionId: string,
-        metadata: { page?: number } | undefined,
-    ): Promise<PagedResults> {
-        const page = metadata?.page ?? 1;
+    // ──────────────────────────────────────────────
+    // 首頁
+    // ──────────────────────────────────────────────
+    async getDiscoverSections(): Promise<DiscoverSection[]> {
+        return [
+            {
+                id: "latest",
+                title: "最新套圖",
+                type: DiscoverSectionType.simpleCarousel,
+            },
+        ];
+    }
 
-        const request = App.createRequest({
+    async getDiscoverSectionItems(
+        section: DiscoverSection,
+        metadata: { page?: number } | undefined,
+    ): Promise<PagedResults<DiscoverSectionItem>> {
+        const page = metadata?.page ?? 1;
+        const request: Request = {
             url: buildListUrl(page),
             method: "GET",
-        });
+        };
+        const [, data] = await Application.scheduleRequest(request);
+        const items = parseAlbumList(Application.arrayBufferToUTF8String(data));
 
-        const response = await this.requestManager.schedule(request, 1);
-        const items = parseAlbumList(response.data);
-
-        return App.createPagedResults({
-            results: items.map((item) => this.albumToInfo(item)),
+        return {
+            items: items.map(
+                (item) =>
+                    ({
+                        type: "simpleCarouselItem",
+                        mangaId: item.id,
+                        imageUrl: item.cover,
+                        title: item.title,
+                    }) as DiscoverSectionItem,
+            ),
             metadata: items.length > 0 ? { page: page + 1 } : undefined,
-        });
+        };
     }
 
     // ──────────────────────────────────────────────
     // 搜尋
     // ──────────────────────────────────────────────
     async getSearchResults(
-        query: SearchRequest,
+        query: SearchQuery,
         metadata: { page?: number } | undefined,
-    ): Promise<PagedResults> {
+    ): Promise<PagedResults<SearchResultItem>> {
         const page = metadata?.page ?? 1;
         const keyword = query.title ?? "";
 
@@ -102,102 +109,99 @@ export class XiuShen extends Source {
             ? `${BASE_URL}/search/?k=${encodeURIComponent(keyword)}&p=${page}`
             : buildListUrl(page);
 
-        const request = App.createRequest({ url, method: "GET" });
-        const response = await this.requestManager.schedule(request, 1);
-        const items = parseAlbumList(response.data);
+        const request: Request = { url, method: "GET" };
+        const [, data] = await Application.scheduleRequest(request);
+        const items = parseAlbumList(Application.arrayBufferToUTF8String(data));
 
-        return App.createPagedResults({
-            results: items.map((item) => this.albumToInfo(item)),
+        return {
+            items: items.map(
+                (item) =>
+                    ({
+                        mangaId: item.id,
+                        imageUrl: item.cover,
+                        title: item.title,
+                    }) as SearchResultItem,
+            ),
             metadata: items.length > 0 ? { page: page + 1 } : undefined,
-        });
+        };
     }
 
     // ──────────────────────────────────────────────
     // 套圖詳情
     // ──────────────────────────────────────────────
-    async getMangaDetails(mangaId: string): Promise<any> {
-        const request = App.createRequest({
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const request: Request = {
             url: buildDetailUrl(mangaId),
-            method: 'GET',
-        })
+            method: "GET",
+        };
+        const [, data] = await Application.scheduleRequest(request);
+        const detail = parseAlbumDetail(
+            Application.arrayBufferToUTF8String(data),
+        );
 
-        const response = await this.requestManager.schedule(request, 1)
-        const detail = parseAlbumDetail(response.data)
-
-        return App.createMangaInfo({
-            titles: [detail.title],
-            image: detail.cover,
-            author: detail.author,
-            desc: '',          // 必填，寫真站無簡介
-            status: 'COMPLETED',
-            tags: [
-                App.createTagSection({
-                    id: 'tags',
-                    label: '標籤',
-                    tags: detail.tags.map((t: string) =>
-                        App.createTag({ id: t, label: t })
-                    ),
-                }),
-            ],
-        })
+        return {
+            mangaId,
+            mangaInfo: {
+                thumbnailUrl: detail.cover,
+                primaryTitle: detail.title,
+                secondaryTitles: [],
+                synopsis: "",
+                contentRating: ContentRating.ADULT,
+                author: detail.author,
+                status: "Completed",
+                tagGroups:
+                    detail.tags.length > 0
+                        ? [
+                              {
+                                  id: "tags",
+                                  title: "標籤",
+                                  tags: detail.tags.map((t: string) => ({
+                                      id: t,
+                                      title: t,
+                                  })),
+                              } as TagSection,
+                          ]
+                        : [],
+            },
+        };
     }
 
     // ──────────────────────────────────────────────
-    // 章節列表（每套圖只有 1 個 chapter）
+    // 章節列表
     // ──────────────────────────────────────────────
-    async getChapters(mangaId: string): Promise<Chapter[]> {
+    async getChapters(sourceManga: SourceManga): Promise<Chapter[]> {
         return [
-            App.createChapter({
-                id: "all",
+            {
+                chapterId: "all",
+                title: "完整套圖",
+                sourceManga,
                 chapNum: 1,
-                name: "完整套圖",
-                langCode: "🇨🇳",
-            }),
+                langCode: "zh",
+            },
         ];
     }
 
     // ──────────────────────────────────────────────
-    // 章節內容（圖片列表）
+    // 章節圖片
     // ──────────────────────────────────────────────
-    async getChapterDetails(
-        mangaId: string,
-        chapterId: string,
-    ): Promise<ChapterDetails> {
-        const request = App.createRequest({
-            url: buildDetailUrl(mangaId),
+    async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
+        const request: Request = {
+            url: buildDetailUrl(chapter.sourceManga.mangaId),
             method: "GET",
-        });
+        };
+        const [, data] = await Application.scheduleRequest(request);
+        const detail = parseAlbumDetail(
+            Application.arrayBufferToUTF8String(data),
+        );
 
-        const response = await this.requestManager.schedule(request, 1);
-        const detail = parseAlbumDetail(response.data);
-
-        return App.createChapterDetails({
-            id: chapterId,
-            mangaId,
+        return {
+            id: chapter.chapterId,
+            mangaId: chapter.sourceManga.mangaId,
             pages: detail.images,
-        });
+        };
     }
 
-    // ──────────────────────────────────────────────
-    // 更新檢查
-    // ──────────────────────────────────────────────
-    async filterUpdatedManga(
-        mangaUpdatesFoundCallback: (updates: MangaUpdates) => void,
-        time: Date,
-        ids: string[],
-    ): Promise<void> {
-        mangaUpdatesFoundCallback(App.createMangaUpdates({ ids: [] }));
-    }
-
-    // ──────────────────────────────────────────────
-    // 工具函式
-    // ──────────────────────────────────────────────
-    private albumToInfo(item: AlbumItem): any {
-        return App.createMangaInfo({
-            titles: [item.title],
-            image: item.cover,
-            desc: '',
-            status: 'COMPLETED',
-        })
+    async getSearchFilters(): Promise<SearchFilter[]> {
+        return [];
     }
 }
