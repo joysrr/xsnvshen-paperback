@@ -22515,11 +22515,9 @@ exports.parseAlbumList = parseAlbumList;
 function parseAlbumDetail(html) {
     const $ = cheerio.load(html);
     // 標題：優先 h1，fallback 到第一張圖的 alt
-    const title = $("h1").first().text().trim() ||
-        $("p img.lazy").first().attr("alt") ||
-        "";
+    const title = $("h1").first().text().trim() || $("p img").first().attr("alt") || "";
     // 封面：第一張內容圖
-    const cover = fixUrl($("p img.lazy").first().attr("src") || "");
+    const cover = fixUrl($("p img").first().attr("src") || "");
     // 作者
     const author = $(".model-name, .girl-name, .author").first().text().trim() ||
         "Unknown";
@@ -22533,7 +22531,7 @@ function parseAlbumDetail(html) {
     // 圖片：詳情頁的內容圖在 <p><img class='lazy'></p>
     // thumb_600x900 是內容圖，thumb_205x308 是推薦縮圖，只取內容圖
     const images = [];
-    $("p img.lazy").each((_, el) => {
+    $("p img").each((_, el) => {
         const src = fixUrl($(el).attr("src") || $(el).attr("data-src") || "");
         if (src && src.includes("thumb_600x900")) {
             images.push(src);
