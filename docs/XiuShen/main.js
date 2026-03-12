@@ -22226,10 +22226,22 @@ class XiuShen extends types_1.Source {
             requestTimeout: 15000,
             interceptor: {
                 interceptRequest: async (request) => {
-                    // 加入完整瀏覽器 headers，模擬手機 Safari
-                    request.headers = Object.assign(Object.assign({}, request.headers), { "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
-                            "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
-                            "Version/16.0 Mobile/15E148 Safari/604.1", Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "zh-TW,zh;q=0.9", Referer: BASE_URL + "/", Connection: "keep-alive" });
+                    var _a;
+                    // 判斷是否為圖片請求 (包含圖床網域或副檔名)
+                    const isImage = request.url.includes("img.xsnvshen.com") ||
+                        request.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                    // 更新成較新的 iOS 17 User-Agent，降低被 CF 攔截的機率
+                    const modernUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
+                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), { "User-Agent": modernUA, "Accept-Language": "zh-TW,zh;q=0.9", Referer: BASE_URL + "/", Connection: "keep-alive" });
+                    // 根據請求類型給予正確的 Accept
+                    if (isImage) {
+                        request.headers["Accept"] =
+                            "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
+                    }
+                    else {
+                        request.headers["Accept"] =
+                            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+                    }
                     console.log(`${TAG} → ${request.method} ${request.url}`);
                     return request;
                 },
@@ -22445,12 +22457,12 @@ class XiuShen extends types_1.Source {
     async getCloudflareBypassRequestAsync() {
         console.log(`${TAG} getCloudflareBypassRequestAsync: 對圖片伺服器取得 CF cookie`);
         return App.createRequest({
-            url: "https://img.xsnvshen.com/",
+            url: BASE_URL,
             method: "GET",
             headers: {
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) " +
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) " +
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
-                    "Version/16.0 Mobile/15E148 Safari/604.1",
+                    "Version/17.2 Mobile/15E148 Safari/604.1",
             },
         });
     }
