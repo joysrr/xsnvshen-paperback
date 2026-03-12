@@ -26,7 +26,7 @@ const USER_AGENT =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.3",
+    version: "1.0.4",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -333,6 +333,9 @@ export class XiuShen extends Source {
     // ──────────────────────────────────────────────
     // 章節圖片
     // ──────────────────────────────────────────────
+    // ──────────────────────────────────────────────
+    // 章節圖片 (支援多頁合併)
+    // ──────────────────────────────────────────────
     async getChapterDetails(
         mangaId: string,
         chapterId: string,
@@ -342,37 +345,77 @@ export class XiuShen extends Source {
         );
 
         try {
-            const request: Request = App.createRequest({
-                url: buildDetailUrl(mangaId),
+            // 1. 先請求第一頁
+            const firstPageRequest: Request = App.createRequest({
+                url: buildDetailUrl(mangaId), // 預設第一頁
                 method: "GET",
             });
-            const response = await this.requestManager.schedule(request, 1);
-            const detail = parseAlbumDetail(response.data);
+            const firstPageResponse = await this.requestManager.schedule(
+                firstPageRequest,
+                1,
+            );
+            const firstPageDetail = parseAlbumDetail(firstPageResponse.data);
+
+            // 存放所有收集到的圖片
+            let allImages: string[] = [...firstPageDetail.images];
+            const totalPages = firstPageDetail.totalPages;
 
             console.log(
-                `${TAG} getChapterDetails: ${detail.images.length} pages`,
+                `${TAG} 第 1 頁抓到 ${firstPageDetail.images.length} 張圖，總頁數: ${totalPages}`,
             );
 
-            if (detail.images.length === 0) {
+            // 2. 如果總頁數 > 1，發起並發請求抓取剩餘頁面
+            if (totalPages > 1) {
+                const pageRequests: Promise<any>[] = [];
+
+                // 從第 2 頁開始 loop 到最後一頁
+                for (let i = 2; i <= totalPages; i++) {
+                    const pageUrl = `${BASE_URL}/album/${mangaId}?p=${i}`; // 根據該站分頁邏輯組裝
+
+                    const request = App.createRequest({
+                        url: pageUrl,
+                        method: "GET",
+                    });
+
+                    // 將 Promise 推入陣列
+                    pageRequests.push(
+                        this.requestManager
+                            .schedule(request, 1)
+                            .then((response) => {
+                                const detail = parseAlbumDetail(response.data);
+                                return detail.images;
+                            })
+                            .catch((err) => {
+                                console.error(
+                                    `${TAG} 抓取第 ${i} 頁失敗:`,
+                                    err,
+                                );
+                                return []; // 失敗回傳空陣列，避免整個流程 crash
+                            }),
+                    );
+                }
+
+                // 並發執行所有請求，加快速度
+                const remainingPagesImages = await Promise.all(pageRequests);
+
+                // 將所有陣列攤平合併進 allImages
+                remainingPagesImages.forEach((imagesArray) => {
+                    allImages = allImages.concat(imagesArray);
+                });
+            }
+
+            console.log(`${TAG} 最終成功抓取總計 ${allImages.length} 張圖片`);
+
+            if (allImages.length === 0) {
                 console.warn(
                     `${TAG} getChapterDetails: 0 pages — 圖片將無法顯示`,
-                );
-                console.log(
-                    `${TAG} html preview: ${response.data.substring(0, 500)}`,
-                );
-            } else {
-                console.log(
-                    `${TAG} getChapterDetails: first=${detail.images[0]}`,
-                );
-                console.log(
-                    `${TAG} getChapterDetails: last=${detail.images[detail.images.length - 1]}`,
                 );
             }
 
             return App.createChapterDetails({
                 id: chapterId,
                 mangaId,
-                pages: detail.images,
+                pages: allImages, // 回傳合併後的所有圖片
             });
         } catch (e) {
             console.error(`${TAG} getChapterDetails: ERROR`, e);

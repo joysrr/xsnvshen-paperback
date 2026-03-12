@@ -12,6 +12,7 @@ export interface AlbumDetail {
     author: string;
     tags: string[];
     images: string[];
+    totalPages: number;
 }
 
 const BASE_URL = "https://www.xsnvshen.com";
@@ -78,7 +79,24 @@ export function parseAlbumDetail(html: string): AlbumDetail {
         }
     });
 
-    return { title, cover, author, tags, images };
+    // 解析總頁數
+    let totalPages = 1;
+    // 定位到 <div id="pageNum"> 下的 <span class="pg_current"> 裡的 <b>
+    const pageText = $("#pageNum .pg_current b").text();
+
+    if (pageText) {
+        // pageText 可能會長得像 '1"/6"' 或是 '1 /6'
+        // 使用 Regex 抓取斜線 '/' 後面的連續數字
+        const match = pageText.match(/\/(\d+)/);
+        if (match && match[1]) {
+            const parsedPage = parseInt(match[1], 10);
+            if (!isNaN(parsedPage)) {
+                totalPages = parsedPage;
+            }
+        }
+    }
+
+    return { title, cover, author, tags, images, totalPages };
 }
 
 export function buildListUrl(page: number): string {

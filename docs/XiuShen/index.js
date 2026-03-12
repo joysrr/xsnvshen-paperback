@@ -22202,7 +22202,7 @@ const parser_1 = require("./parser");
 const BASE_URL = "https://www.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.3",
+    version: "1.0.4",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -22434,28 +22434,60 @@ class XiuShen extends types_1.Source {
     // ──────────────────────────────────────────────
     // 章節圖片
     // ──────────────────────────────────────────────
+    // ──────────────────────────────────────────────
+    // 章節圖片 (支援多頁合併)
+    // ──────────────────────────────────────────────
     async getChapterDetails(mangaId, chapterId) {
         console.log(`${TAG} getChapterDetails: mangaId=${mangaId} chapterId=${chapterId}`);
         try {
-            const request = App.createRequest({
+            // 1. 先請求第一頁
+            const firstPageRequest = App.createRequest({
                 url: (0, parser_1.buildDetailUrl)(mangaId),
                 method: "GET",
             });
-            const response = await this.requestManager.schedule(request, 1);
-            const detail = (0, parser_1.parseAlbumDetail)(response.data);
-            console.log(`${TAG} getChapterDetails: ${detail.images.length} pages`);
-            if (detail.images.length === 0) {
-                console.warn(`${TAG} getChapterDetails: 0 pages — 圖片將無法顯示`);
-                console.log(`${TAG} html preview: ${response.data.substring(0, 500)}`);
+            const firstPageResponse = await this.requestManager.schedule(firstPageRequest, 1);
+            const firstPageDetail = (0, parser_1.parseAlbumDetail)(firstPageResponse.data);
+            // 存放所有收集到的圖片
+            let allImages = [...firstPageDetail.images];
+            const totalPages = firstPageDetail.totalPages;
+            console.log(`${TAG} 第 1 頁抓到 ${firstPageDetail.images.length} 張圖，總頁數: ${totalPages}`);
+            // 2. 如果總頁數 > 1，發起並發請求抓取剩餘頁面
+            if (totalPages > 1) {
+                const pageRequests = [];
+                // 從第 2 頁開始 loop 到最後一頁
+                for (let i = 2; i <= totalPages; i++) {
+                    const pageUrl = `${BASE_URL}/album/${mangaId}?p=${i}`; // 根據該站分頁邏輯組裝
+                    const request = App.createRequest({
+                        url: pageUrl,
+                        method: "GET",
+                    });
+                    // 將 Promise 推入陣列
+                    pageRequests.push(this.requestManager
+                        .schedule(request, 1)
+                        .then((response) => {
+                        const detail = (0, parser_1.parseAlbumDetail)(response.data);
+                        return detail.images;
+                    })
+                        .catch((err) => {
+                        console.error(`${TAG} 抓取第 ${i} 頁失敗:`, err);
+                        return []; // 失敗回傳空陣列，避免整個流程 crash
+                    }));
+                }
+                // 並發執行所有請求，加快速度
+                const remainingPagesImages = await Promise.all(pageRequests);
+                // 將所有陣列攤平合併進 allImages
+                remainingPagesImages.forEach((imagesArray) => {
+                    allImages = allImages.concat(imagesArray);
+                });
             }
-            else {
-                console.log(`${TAG} getChapterDetails: first=${detail.images[0]}`);
-                console.log(`${TAG} getChapterDetails: last=${detail.images[detail.images.length - 1]}`);
+            console.log(`${TAG} 最終成功抓取總計 ${allImages.length} 張圖片`);
+            if (allImages.length === 0) {
+                console.warn(`${TAG} getChapterDetails: 0 pages — 圖片將無法顯示`);
             }
             return App.createChapterDetails({
                 id: chapterId,
                 mangaId,
-                pages: detail.images,
+                pages: allImages, // 回傳合併後的所有圖片
             });
         }
         catch (e) {
@@ -22559,7 +22591,22 @@ function parseAlbumDetail(html) {
             images.push(src);
         }
     });
-    return { title, cover, author, tags, images };
+    // 解析總頁數
+    let totalPages = 1;
+    // 定位到 <div id="pageNum"> 下的 <span class="pg_current"> 裡的 <b>
+    const pageText = $("#pageNum .pg_current b").text();
+    if (pageText) {
+        // pageText 可能會長得像 '1"/6"' 或是 '1 /6'
+        // 使用 Regex 抓取斜線 '/' 後面的連續數字
+        const match = pageText.match(/\/(\d+)/);
+        if (match && match[1]) {
+            const parsedPage = parseInt(match[1], 10);
+            if (!isNaN(parsedPage)) {
+                totalPages = parsedPage;
+            }
+        }
+    }
+    return { title, cover, author, tags, images, totalPages };
 }
 exports.parseAlbumDetail = parseAlbumDetail;
 function buildListUrl(page) {
