@@ -15,13 +15,12 @@ import {
 } from "@paperback/types";
 
 import {
-    CategoryTree,
     parseTags,
     parseCategories,
-    parseCategoryTree,
     parseAlbumList,
     parseAlbumDetail,
     buildListUrl,
+    buildCategoryListUrl,
     buildDetailUrl,
 } from "./parser";
 
@@ -30,7 +29,7 @@ const USER_AGENT =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.8",
+    version: "1.0.9",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -161,7 +160,7 @@ export class XiuShen extends Source {
             const categories = parseCategories(navRes.data);
             for (let index = 0; index < categories.length; index++) {
                 const section = App.createHomeSection({
-                    id: `category_${index}`,
+                    id: `category_${categories[index].id}`,
                     title: categories[index].label,
                     type: "singleRowNormal",
                     containsMoreItems: true,
@@ -170,7 +169,7 @@ export class XiuShen extends Source {
 
                 const categoryResponse = await this.requestManager.schedule(
                     App.createRequest({
-                        url: `${BASE_URL}/album/${categories[index].id}/`,
+                        url: buildCategoryListUrl(categories[index].id, 1),
                         method: "GET",
                     }),
                     1,
@@ -184,40 +183,9 @@ export class XiuShen extends Source {
                 );
                 sectionCallback(section);
             }
-
-            const categoryTree = parseCategoryTree(navRes.data);
-            const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
-
-            categorySections.forEach((section) => sectionCallback(section));
         } catch (e) {
             console.error(`${TAG} ERROR:`, e);
         }
-    }
-
-    // ★ 從分類樹建立 HomeSection 陣列
-    createCategorySections(categoryTree: CategoryTree[]): HomeSection[] {
-        const sections: HomeSection[] = [];
-
-        categoryTree.forEach((category, index) => {
-            const section = App.createHomeSection({
-                id: `category_${index}_${category.id}`,
-                title: category.name,
-                type: "singleRowSquare",
-                containsMoreItems: true,
-            });
-
-            section.items = category.smallCategories.map((cat) =>
-                App.createPartialSourceManga({
-                    mangaId: cat.id,
-                    image: `${BASE_URL}/favicon.ico`, // 或自訂圖示
-                    title: cat.label,
-                }),
-            );
-
-            sections.push(section);
-        });
-
-        return sections;
     }
 
     // ──────────────────────────────────────────────
@@ -233,8 +201,16 @@ export class XiuShen extends Source {
         );
 
         try {
+            let url: string;
+            if (homepageSectionId === "latest") {
+                url = buildListUrl(page);
+            } else if (homepageSectionId.startsWith("category_")) {
+                const categoryId = homepageSectionId.split("_")[2];
+                url = buildCategoryListUrl(categoryId, page);
+            }
+
             const request: Request = App.createRequest({
-                url: buildListUrl(page),
+                url: url,
                 method: "GET",
             });
 

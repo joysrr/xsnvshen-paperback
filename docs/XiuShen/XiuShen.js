@@ -22202,7 +22202,7 @@ const parser_1 = require("./parser");
 const BASE_URL = "https://m.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.8",
+    version: "1.0.9",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -22301,14 +22301,14 @@ class XiuShen extends types_1.Source {
             const categories = (0, parser_1.parseCategories)(navRes.data);
             for (let index = 0; index < categories.length; index++) {
                 const section = App.createHomeSection({
-                    id: `category_${index}`,
+                    id: `category_${categories[index].id}`,
                     title: categories[index].label,
                     type: "singleRowNormal",
                     containsMoreItems: true,
                 });
                 sectionCallback(section);
                 const categoryResponse = await this.requestManager.schedule(App.createRequest({
-                    url: `${BASE_URL}/album/${categories[index].id}/`,
+                    url: (0, parser_1.buildCategoryListUrl)(categories[index].id, 1),
                     method: "GET",
                 }), 1);
                 section.items = (0, parser_1.parseAlbumList)(categoryResponse.data).map((i) => App.createPartialSourceManga({
@@ -22318,32 +22318,10 @@ class XiuShen extends types_1.Source {
                 }));
                 sectionCallback(section);
             }
-            const categoryTree = (0, parser_1.parseCategoryTree)(navRes.data);
-            const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
-            categorySections.forEach((section) => sectionCallback(section));
         }
         catch (e) {
             console.error(`${TAG} ERROR:`, e);
         }
-    }
-    // ★ 從分類樹建立 HomeSection 陣列
-    createCategorySections(categoryTree) {
-        const sections = [];
-        categoryTree.forEach((category, index) => {
-            const section = App.createHomeSection({
-                id: `category_${index}_${category.id}`,
-                title: category.name,
-                type: "singleRowSquare",
-                containsMoreItems: true,
-            });
-            section.items = category.smallCategories.map((cat) => App.createPartialSourceManga({
-                mangaId: cat.id,
-                image: `${BASE_URL}/favicon.ico`,
-                title: cat.label,
-            }));
-            sections.push(section);
-        });
-        return sections;
     }
     // ──────────────────────────────────────────────
     // 載入更多
@@ -22353,8 +22331,16 @@ class XiuShen extends types_1.Source {
         const page = ((_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1);
         console.log(`${TAG} getViewMoreItems: section=${homepageSectionId} page=${page}`);
         try {
+            let url;
+            if (homepageSectionId === "latest") {
+                url = (0, parser_1.buildListUrl)(page);
+            }
+            else if (homepageSectionId.startsWith("category_")) {
+                const categoryId = homepageSectionId.split("_")[2];
+                url = (0, parser_1.buildCategoryListUrl)(categoryId, page);
+            }
             const request = App.createRequest({
-                url: (0, parser_1.buildListUrl)(page),
+                url: url,
                 method: "GET",
             });
             const response = await this.requestManager.schedule(request, 1);
@@ -22621,7 +22607,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = exports.parseCategories = exports.parseCategoryTree = void 0;
+exports.buildDetailUrl = exports.buildCategoryListUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = exports.parseCategories = void 0;
 const cheerio = __importStar(require("cheerio"));
 const BASE_URL = "https://m.xsnvshen.com";
 function fixUrl(url) {
@@ -22631,35 +22617,6 @@ function fixUrl(url) {
         return "https:" + url;
     return url;
 }
-function parseCategoryTree(html) {
-    const $ = cheerio.load(html);
-    const bigCategories = [];
-    // 解析大分類 tab
-    $(".Lnavlists .sort-nav-item").each((index, tabElem) => {
-        const name = $(tabElem).attr("title") || $(tabElem).text().trim();
-        const id = $(tabElem).attr("tab");
-        console.log(`大分類 [${id}]: ${name}`);
-        if (!name || !id)
-            return;
-        const smallCategories = [];
-        // 對應的小分類
-        $(`#${id} .sort-item-box-inner a[href^='/album/']`).each((_, aElem) => {
-            const href = $(aElem).attr("href") || "";
-            const label = $(aElem).find(".spimgtit").text().trim() ||
-                $(aElem).attr("title") ||
-                $(aElem).text().trim();
-            const match = href.match(/\/album\/([^\/]+)\/?$/);
-            if (match && match[1] && label) {
-                smallCategories.push({ id: match[1], label });
-                console.log(`  小分類 ${smallCategories.length}: ${label} (${match[1]})`);
-            }
-        });
-        bigCategories.push({ name, id, smallCategories });
-    });
-    console.log(`總共 ${bigCategories.length} 個大分類，${bigCategories.reduce((sum, c) => sum + c.smallCategories.length, 0)} 個小分類`);
-    return bigCategories;
-}
-exports.parseCategoryTree = parseCategoryTree;
 // 解析分類
 function parseCategories(html) {
     const $ = cheerio.load(html);
@@ -22786,6 +22743,10 @@ function buildListUrl(page) {
     return `${BASE_URL}/album/hd/?p=${page}`;
 }
 exports.buildListUrl = buildListUrl;
+function buildCategoryListUrl(category, page) {
+    return `${BASE_URL}/album/${category}/?p=${page}`;
+}
+exports.buildCategoryListUrl = buildCategoryListUrl;
 function buildDetailUrl(id) {
     return `${BASE_URL}/album/${id}/`;
 }

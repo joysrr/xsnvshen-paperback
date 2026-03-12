@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-03-12T08:45:11.012Z",
+  "buildTime": "2026-03-12T10:00:09.231Z",
   "sources": [
     {
       "id": "XiuShen",
@@ -8,7 +8,7 @@
       "desc": "秀色女神寫真套圖來源",
       "website": "https://github.com/joysrr",
       "contentRating": "ADULT",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "icon": "icon.png",
       "websiteBaseURL": "https://m.xsnvshen.com",
       "intents": 21

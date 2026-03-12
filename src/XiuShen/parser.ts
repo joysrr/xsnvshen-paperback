@@ -24,53 +24,6 @@ function fixUrl(url: string): string {
     return url;
 }
 
-// ★ 純解析：回傳分類樹狀結構
-export interface CategoryTree {
-    name: string; // "着装", "风格"
-    id: string; // "picl_1", "picl_2"
-    smallCategories: Array<{ id: string; label: string }>;
-}
-
-export function parseCategoryTree(html: string): CategoryTree[] {
-    const $ = cheerio.load(html);
-    const bigCategories: CategoryTree[] = [];
-
-    // 解析大分類 tab
-    $(".Lnavlists .sort-nav-item").each((index, tabElem) => {
-        const name = $(tabElem).attr("title") || $(tabElem).text().trim();
-        const id = $(tabElem).attr("tab");
-
-        console.log(`大分類 [${id}]: ${name}`);
-        if (!name || !id) return;
-
-        const smallCategories: Array<{ id: string; label: string }> = [];
-
-        // 對應的小分類
-        $(`#${id} .sort-item-box-inner a[href^='/album/']`).each((_, aElem) => {
-            const href = $(aElem).attr("href") || "";
-            const label =
-                $(aElem).find(".spimgtit").text().trim() ||
-                $(aElem).attr("title") ||
-                $(aElem).text().trim();
-
-            const match = href.match(/\/album\/([^\/]+)\/?$/);
-            if (match && match[1] && label) {
-                smallCategories.push({ id: match[1], label });
-                console.log(
-                    `  小分類 ${smallCategories.length}: ${label} (${match[1]})`,
-                );
-            }
-        });
-
-        bigCategories.push({ name, id, smallCategories });
-    });
-
-    console.log(
-        `總共 ${bigCategories.length} 個大分類，${bigCategories.reduce((sum, c) => sum + c.smallCategories.length, 0)} 個小分類`,
-    );
-    return bigCategories;
-}
-
 // 解析分類
 export function parseCategories(
     html: string,
@@ -228,6 +181,10 @@ export function parseAlbumDetail(html: string): AlbumDetail {
 
 export function buildListUrl(page: number): string {
     return `${BASE_URL}/album/hd/?p=${page}`;
+}
+
+export function buildCategoryListUrl(category: string, page: number): string {
+    return `${BASE_URL}/album/${category}/?p=${page}`;
 }
 
 export function buildDetailUrl(id: string): string {

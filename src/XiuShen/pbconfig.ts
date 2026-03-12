@@ -1,7 +1,7 @@
 import { ContentRating, SourceIntents } from "@paperback/types";
 
 const info = {
-    version: "1.0.8",
+    version: "1.0.9",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
