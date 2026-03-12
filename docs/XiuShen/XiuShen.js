@@ -22336,7 +22336,7 @@ class XiuShen extends types_1.Source {
                 url = (0, parser_1.buildListUrl)(page);
             }
             else if (homepageSectionId.startsWith("category_")) {
-                const categoryId = homepageSectionId.split("_")[2];
+                const categoryId = homepageSectionId.replace("category_", "");
                 url = (0, parser_1.buildCategoryListUrl)(categoryId, page);
             }
             const request = App.createRequest({

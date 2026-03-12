@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import * as zlib from "zlib"; // ★ GZIP 解壓縮
 
 import {
-    parseCategoryTree,
+    buildCategoryListUrl,
     parseCategories,
     parseAlbumList,
     parseAlbumDetail,
@@ -93,7 +93,7 @@ async function main() {
                 `${i + 1}. ${categories[i].label} (${categories[i].id})`,
             );
 
-            const categoryUrl = `${BASE_URL}/album/${categories[i].id}/`;
+            const categoryUrl = buildCategoryListUrl(categories[i].id, 2);
             const categoryHtml = await fetch(categoryUrl);
             const items = parseAlbumList(categoryHtml);
             console.log(`  找到 ${items.length} 個套圖`);

@@ -205,7 +205,7 @@ export class XiuShen extends Source {
             if (homepageSectionId === "latest") {
                 url = buildListUrl(page);
             } else if (homepageSectionId.startsWith("category_")) {
-                const categoryId = homepageSectionId.split("_")[2];
+                const categoryId = homepageSectionId.replace("category_", "");
                 url = buildCategoryListUrl(categoryId, page);
             }
 
