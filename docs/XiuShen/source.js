@@ -22230,17 +22230,31 @@ class XiuShen extends types_1.Source {
                     var _a;
                     const isImage = request.url.includes("img.xsnvshen.com") ||
                         request.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), { "User-Agent": USER_AGENT, "Accept-Language": "zh-TW,zh-Hant;q=0.9,en;q=0.8", Referer: BASE_URL + "/", "Sec-Fetch-Dest": isImage ? "image" : "document", "Sec-Fetch-Mode": isImage ? "no-cors" : "navigate", "Sec-Fetch-Site": "same-origin" });
+                    // ★ 動態產生 Referer
+                    let dynamicReferer = BASE_URL + "/";
+                    if (isImage) {
+                        // 圖片網址範例: https://img.xsnvshen.com/thumb_600x900/album/0/45581/000.jpg
+                        // 用 Regex 抓取倒數第二個資料夾的數字 (也就是 45581)
+                        const match = request.url.match(/album\/\d+\/(\d+)\//i) ||
+                            request.url.match(/album\/(\d+)\//i);
+                        if (match && match[1]) {
+                            // 組裝出手機版的 Referer
+                            dynamicReferer = `https://m.xsnvshen.com/album/${match[1]}`;
+                        }
+                    }
+                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), { "User-Agent": USER_AGENT, "Accept-Language": "zh-TW,zh-Hant;q=0.9", Referer: dynamicReferer, "Sec-Fetch-Dest": isImage ? "image" : "document", "Sec-Fetch-Mode": isImage ? "no-cors" : "navigate", "Sec-Fetch-Site": isImage ? "same-site" : "same-origin" });
+                    // 刪除手動指定的 Connection，交給 iOS 底層網路庫自動處理
                     delete request.headers["Connection"];
+                    // 根據請求類型給予 100% 符合 Safari 特徵的 Accept 標頭
                     if (isImage) {
                         request.headers["Accept"] =
                             "image/webp,image/avif,image/jxl,image/heic,image/heic-sequence,video/*;q=0.8,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5";
                     }
                     else {
                         request.headers["Accept"] =
-                            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
+                            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
                     }
-                    console.log(`${TAG} → ${request.method} ${request.url}`);
+                    console.log(`${TAG} → ${request.method} ${request.url} | 動態 Referer: ${dynamicReferer}`);
                     return request;
                 },
                 interceptResponse: async (response) => {
@@ -22455,7 +22469,6 @@ class XiuShen extends types_1.Source {
     async getCloudflareBypassRequestAsync() {
         console.log(`${TAG} getCloudflareBypassRequestAsync: 針對圖床取得 CF cookie`);
         return App.createRequest({
-            // ★ 關鍵：直接請求一張確定存在的圖片，強迫 Cloudflare 對圖床網域進行驗證
             url: "https://img.xsnvshen.com/thumb_600x900/album/0/45581/000.jpg",
             method: "GET",
             headers: {
