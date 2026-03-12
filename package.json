@@ -5,7 +5,7 @@
   "repositoryName": "XiuShen Source",
   "scripts": {
     "test:parser": "npx ts-node scripts/test-parser.ts",
-    "build": "npx paperback bundle && rm -rf docs && cp -r bundles docs && node scripts/postbuild.js",
+    "build": "npx paperback bundle",
     "serve": "npx paperback serve",
     "test": "npx paperback test"
   },
