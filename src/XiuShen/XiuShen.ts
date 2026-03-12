@@ -24,7 +24,7 @@ import {
 const BASE_URL = "https://www.xsnvshen.com";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.0",
+    version: "1.0.1",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",

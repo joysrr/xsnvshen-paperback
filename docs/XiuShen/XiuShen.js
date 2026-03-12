@@ -22201,7 +22201,7 @@ const types_1 = require("@paperback/types");
 const parser_1 = require("./parser");
 const BASE_URL = "https://www.xsnvshen.com";
 exports.XiuShenInfo = {
-    version: "1.0.0",
+    version: "1.0.1",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
