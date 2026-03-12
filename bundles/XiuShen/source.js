@@ -22276,42 +22276,50 @@ class XiuShen extends types_1.Source {
     // ──────────────────────────────────────────────
     async getHomePageSections(sectionCallback) {
         console.log(`${TAG} getHomePageSections: start`);
-        // 先送出空 section（顯示 loading 狀態）
-        const section = App.createHomeSection({
+        // ★ 1. 先顯示載入中的最新套圖
+        const latestSection = App.createHomeSection({
             id: "latest",
             title: "最新套圖",
             type: "singleRowNormal",
             containsMoreItems: true,
         });
-        sectionCallback(section);
+        sectionCallback(latestSection);
+        // ★ 2. 動態載入分類區塊
+        const categorySection = App.createHomeSection({
+            id: "categories",
+            title: "📂 套圖分類",
+            type: "singleRowSquare",
+            containsMoreItems: false, // 分類區不需要無限滾動
+        });
+        sectionCallback(categorySection);
         try {
-            const request = App.createRequest({
-                url: (0, parser_1.buildListUrl)(1),
-                method: "GET",
-            });
-            const response = await this.requestManager.schedule(request, 1);
-            if (!response.data) {
-                console.error(`${TAG} getHomePageSections: response.data is empty`);
-                return;
-            }
-            const items = (0, parser_1.parseAlbumList)(response.data);
-            console.log(`${TAG} getHomePageSections: parsed ${items.length} items`);
-            if (items.length === 0) {
-                console.warn(`${TAG} getHomePageSections: 0 items — selector 可能沒 match，檢查 parseAlbumList`);
-                // 印出前 500 字方便 debug
-                console.log(`${TAG} html preview: ${response.data.substring(0, 500)}`);
-                return;
-            }
-            section.items = items.map((item) => App.createPartialSourceManga({
+            // 載入最新套圖
+            const latestResponse = await this.requestManager.schedule(App.createRequest({ url: (0, parser_1.buildListUrl)(1), method: "GET" }), 1);
+            const latestItems = (0, parser_1.parseAlbumList)(latestResponse.data);
+            latestSection.items = latestItems.map((item) => App.createPartialSourceManga({
                 mangaId: item.id,
                 image: item.cover,
                 title: item.title,
             }));
-            sectionCallback(section);
-            console.log(`${TAG} getHomePageSections: done`);
+            // 載入分類資料
+            const navResponse = await this.requestManager.schedule(App.createRequest({ url: BASE_URL, method: "GET" }), 1);
+            const tags = (0, parser_1.parseTags)(navResponse.data); // 你現有的 parseTags
+            // ★ 從分類標籤中取前 10 個熱門分類，轉成首頁區塊
+            const hotCategories = tags
+                .flatMap((section) => section.tags.slice(0, 2))
+                .slice(0, 10); // 總共最多 10 個
+            categorySection.items = hotCategories.map((tag) => App.createPartialSourceManga({
+                mangaId: tag.id,
+                image: `${BASE_URL}/album/${tag.id}/icon.jpg`,
+                title: tag.label, // "内衣"
+            }));
+            // 重新回調讓介面更新
+            sectionCallback(latestSection);
+            sectionCallback(categorySection);
+            console.log(`${TAG} 分類區塊載入 ${categorySection.items.length} 個分類`);
         }
         catch (e) {
-            console.error(`${TAG} getHomePageSections: ERROR`, e);
+            console.error(`${TAG} getHomePageSections ERROR:`, e);
         }
     }
     // ──────────────────────────────────────────────
@@ -22371,33 +22379,47 @@ class XiuShen extends types_1.Source {
         console.log(`${TAG} getSearchResults: page=${page}`);
         try {
             let url;
-            // 1. 處理分類標籤搜尋 (例如點擊了 "t175")
+            // 1. 處理分類標籤搜尋 (詳情頁標籤點擊，透過 query.includedTags)
             if (query.includedTags && query.includedTags.length > 0) {
                 const tagId = query.includedTags[0].id; // 取得 "t175"
-                console.log(`${TAG} 正在瀏覽分類: ${tagId}`);
-                // 組裝分類頁面的 URL。第一頁通常沒有 ?p=，第二頁開始有
+                console.log(`${TAG} 詳情頁標籤點擊: ${tagId}`);
                 if (page === 1) {
                     url = `${BASE_URL}/album/${tagId}/`;
                 }
                 else {
-                    url = `${BASE_URL}/album/${tagId}/?p=${page}`; // 或是 /album/${tagId}/${page}.html 視該網站實際的翻頁規則而定
+                    url = `${BASE_URL}/album/${tagId}/?p=${page}`;
                 }
             }
-            // 2. 處理關鍵字搜尋
-            else if (query.title) {
-                console.log(`${TAG} 正在搜尋關鍵字: ${query.title}`);
-                url = `${BASE_URL}/search/?k=${encodeURIComponent(query.title)}&p=${page}`;
+            // 2. 處理首頁分類區塊點擊 (透過 query.title 傳入分類 ID)
+            else if (query.title && query.title.match(/^t\d+$/)) {
+                const categoryId = query.title; // "t175"
+                console.log(`${TAG} 首頁分類區塊點擊: ${categoryId}`);
+                if (page === 1) {
+                    url = `${BASE_URL}/album/${categoryId}/`;
+                }
+                else {
+                    url = `${BASE_URL}/album/${categoryId}/?p=${page}`;
+                }
             }
-            // 3. 預設列表 (Fallback)
+            // 3. 處理關鍵字搜尋
+            else if (query.title) {
+                console.log(`${TAG} 關鍵字搜尋: ${query.title}`);
+                url = `${BASE_URL}/search/?w=${encodeURIComponent(query.title)}&p=${page}`;
+            }
+            // 4. 預設最新列表
             else {
+                console.log(`${TAG} 最新列表: page ${page}`);
                 url = (0, parser_1.buildListUrl)(page);
             }
+            console.log(`${TAG} 請求 URL: ${url}`);
             const request = App.createRequest({ url, method: "GET" });
             const response = await this.requestManager.schedule(request, 1);
-            // ★ 你提供的 HTML 結構 (<ul class="picpos_6_1..."><li class="min-h-imgall_300">)
-            // 看起來跟你原本首頁的結構是一樣的，所以可以直接共用 parseAlbumList！
+            // 解析列表 (支援首頁和分類頁的兩種結構)
             const items = (0, parser_1.parseAlbumList)(response.data);
-            console.log(`${TAG} getSearchResults: parsed ${items.length} items from URL: ${url}`);
+            console.log(`${TAG} getSearchResults: parsed ${items.length} items`);
+            if (items.length === 0) {
+                console.log(`${TAG} HTML preview:`, response.data.substring(0, 500));
+            }
             return App.createPagedResults({
                 results: items.map((item) => App.createPartialSourceManga({
                     mangaId: item.id,
