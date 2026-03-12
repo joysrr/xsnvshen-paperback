@@ -22202,7 +22202,7 @@ const parser_1 = require("./parser");
 const BASE_URL = "https://www.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.2",
+    version: "1.0.3",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -22228,18 +22228,17 @@ class XiuShen extends types_1.Source {
             interceptor: {
                 interceptRequest: async (request) => {
                     var _a;
-                    // 判斷是否為圖片請求 (包含圖床網域或副檔名)
                     const isImage = request.url.includes("img.xsnvshen.com") ||
                         request.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), { "User-Agent": USER_AGENT, "Accept-Language": "zh-TW,zh;q=0.9", Referer: BASE_URL + "/", Connection: "keep-alive" });
-                    // 根據請求類型給予正確的 Accept
+                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), { "User-Agent": USER_AGENT, "Accept-Language": "zh-TW,zh-Hant;q=0.9,en;q=0.8", Referer: BASE_URL + "/", "Sec-Fetch-Dest": isImage ? "image" : "document", "Sec-Fetch-Mode": isImage ? "no-cors" : "navigate", "Sec-Fetch-Site": "same-origin" });
+                    delete request.headers["Connection"];
                     if (isImage) {
                         request.headers["Accept"] =
-                            "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
+                            "image/webp,image/avif,image/jxl,image/heic,image/heic-sequence,video/*;q=0.8,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5";
                     }
                     else {
                         request.headers["Accept"] =
-                            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+                            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
                     }
                     console.log(`${TAG} → ${request.method} ${request.url}`);
                     return request;
