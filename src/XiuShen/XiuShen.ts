@@ -27,7 +27,7 @@ const USER_AGENT =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.4",
+    version: "1.0.5",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
