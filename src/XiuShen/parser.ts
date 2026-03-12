@@ -1,3 +1,4 @@
+import { TagSection } from "@paperback/types";
 import * as cheerio from "cheerio";
 
 export interface AlbumItem {
@@ -21,6 +22,55 @@ function fixUrl(url: string): string {
     if (!url) return "";
     if (url.startsWith("//")) return "https:" + url;
     return url;
+}
+
+//解析標籤
+export function parseTags(html: string): TagSection[] {
+    const $ = cheerio.load(html);
+    const tagSections: TagSection[] = [];
+
+    // ★ 精準定位：只抓取 id="m_album" (套圖分類) 裡面的 dl 標籤
+    $("#m_album .navigation-down-inner dl").each((index, dlElem) => {
+        // 抓取分類標題 (例如 "着装", "机构" 等)
+        const sectionTitle =
+            $(dlElem).find("dt").text().trim() || `分類 ${index + 1}`;
+
+        const tags: any[] = [];
+
+        // 抓取該分類下的所有連結
+        $(dlElem)
+            .find("dd a")
+            .each((_, aElem) => {
+                const href = $(aElem).attr("href"); // 例如: "/album/t175/"
+                const tagName = $(aElem).text().trim(); // 例如: "内衣"
+
+                if (href && tagName) {
+                    // 從 href 中提取標籤的 ID。 "/album/t175/" -> "t175"
+                    const match = href.match(/\/album\/([^\/]+)\//);
+                    const tagId = match ? match[1] : href;
+
+                    tags.push(
+                        App.createTag({
+                            id: tagId,
+                            label: tagName,
+                        }),
+                    );
+                }
+            });
+
+        // 只有當該分類底下有標籤時，才加入到清單中
+        if (tags.length > 0) {
+            tagSections.push(
+                App.createTagSection({
+                    id: `album_category_${index}`,
+                    label: sectionTitle,
+                    tags: tags,
+                }),
+            );
+        }
+    });
+
+    return tagSections;
 }
 
 // 解析列表頁

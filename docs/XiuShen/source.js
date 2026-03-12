@@ -22344,21 +22344,60 @@ class XiuShen extends types_1.Source {
         }
     }
     // ──────────────────────────────────────────────
-    // 搜尋
+    // 取得分類
+    // ──────────────────────────────────────────────
+    async getSearchTags() {
+        console.log(`${TAG} getSearchTags: start`);
+        try {
+            const request = App.createRequest({
+                url: BASE_URL,
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            const tags = (0, parser_1.parseTags)(response.data);
+            return tags;
+        }
+        catch (e) {
+            console.error(`${TAG} getSearchTags: ERROR`, e);
+            return [];
+        }
+    }
+    // ──────────────────────────────────────────────
+    // 搜尋與分類瀏覽
     // ──────────────────────────────────────────────
     async getSearchResults(query, metadata) {
-        var _a, _b;
+        var _a;
         const page = ((_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1);
-        const keyword = (_b = query.title) !== null && _b !== void 0 ? _b : "";
-        console.log(`${TAG} getSearchResults: keyword="${keyword}" page=${page}`);
+        console.log(`${TAG} getSearchResults: page=${page}`);
         try {
-            const url = keyword
-                ? `${BASE_URL}/search/?k=${encodeURIComponent(keyword)}&p=${page}`
-                : (0, parser_1.buildListUrl)(page);
+            let url;
+            // 1. 處理分類標籤搜尋 (例如點擊了 "t175")
+            if (query.includedTags && query.includedTags.length > 0) {
+                const tagId = query.includedTags[0].id; // 取得 "t175"
+                console.log(`${TAG} 正在瀏覽分類: ${tagId}`);
+                // 組裝分類頁面的 URL。第一頁通常沒有 ?p=，第二頁開始有
+                if (page === 1) {
+                    url = `${BASE_URL}/album/${tagId}/`;
+                }
+                else {
+                    url = `${BASE_URL}/album/${tagId}/?p=${page}`; // 或是 /album/${tagId}/${page}.html 視該網站實際的翻頁規則而定
+                }
+            }
+            // 2. 處理關鍵字搜尋
+            else if (query.title) {
+                console.log(`${TAG} 正在搜尋關鍵字: ${query.title}`);
+                url = `${BASE_URL}/search/?k=${encodeURIComponent(query.title)}&p=${page}`;
+            }
+            // 3. 預設列表 (Fallback)
+            else {
+                url = (0, parser_1.buildListUrl)(page);
+            }
             const request = App.createRequest({ url, method: "GET" });
             const response = await this.requestManager.schedule(request, 1);
+            // ★ 你提供的 HTML 結構 (<ul class="picpos_6_1..."><li class="min-h-imgall_300">)
+            // 看起來跟你原本首頁的結構是一樣的，所以可以直接共用 parseAlbumList！
             const items = (0, parser_1.parseAlbumList)(response.data);
-            console.log(`${TAG} getSearchResults: parsed ${items.length} items`);
+            console.log(`${TAG} getSearchResults: parsed ${items.length} items from URL: ${url}`);
             return App.createPagedResults({
                 results: items.map((item) => App.createPartialSourceManga({
                     mangaId: item.id,
@@ -22537,7 +22576,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = void 0;
+exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = void 0;
 const cheerio = __importStar(require("cheerio"));
 const BASE_URL = "https://www.xsnvshen.com";
 function fixUrl(url) {
@@ -22547,6 +22586,43 @@ function fixUrl(url) {
         return "https:" + url;
     return url;
 }
+//解析標籤
+function parseTags(html) {
+    const $ = cheerio.load(html);
+    const tagSections = [];
+    // ★ 精準定位：只抓取 id="m_album" (套圖分類) 裡面的 dl 標籤
+    $("#m_album .navigation-down-inner dl").each((index, dlElem) => {
+        // 抓取分類標題 (例如 "着装", "机构" 等)
+        const sectionTitle = $(dlElem).find("dt").text().trim() || `分類 ${index + 1}`;
+        const tags = [];
+        // 抓取該分類下的所有連結
+        $(dlElem)
+            .find("dd a")
+            .each((_, aElem) => {
+            const href = $(aElem).attr("href"); // 例如: "/album/t175/"
+            const tagName = $(aElem).text().trim(); // 例如: "内衣"
+            if (href && tagName) {
+                // 從 href 中提取標籤的 ID。 "/album/t175/" -> "t175"
+                const match = href.match(/\/album\/([^\/]+)\//);
+                const tagId = match ? match[1] : href;
+                tags.push(App.createTag({
+                    id: tagId,
+                    label: tagName,
+                }));
+            }
+        });
+        // 只有當該分類底下有標籤時，才加入到清單中
+        if (tags.length > 0) {
+            tagSections.push(App.createTagSection({
+                id: `album_category_${index}`,
+                label: sectionTitle,
+                tags: tags,
+            }));
+        }
+    });
+    return tagSections;
+}
+exports.parseTags = parseTags;
 // 解析列表頁
 function parseAlbumList(html) {
     const $ = cheerio.load(html);

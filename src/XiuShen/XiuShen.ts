@@ -15,6 +15,7 @@ import {
 } from "@paperback/types";
 
 import {
+    parseTags,
     parseAlbumList,
     parseAlbumDetail,
     buildListUrl,
@@ -218,28 +219,67 @@ export class XiuShen extends Source {
     }
 
     // ──────────────────────────────────────────────
-    // 搜尋
+    // 取得分類
+    // ──────────────────────────────────────────────
+    async getSearchTags(): Promise<TagSection[]> {
+        console.log(`${TAG} getSearchTags: start`);
+        try {
+            const request: Request = App.createRequest({
+                url: BASE_URL, // 直接打首頁，因為 <div id="m_album"> 是在全站共用的導覽列中
+                method: "GET",
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            const tags = parseTags(response.data);
+            return tags;
+        } catch (e) {
+            console.error(`${TAG} getSearchTags: ERROR`, e);
+            return [];
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // 搜尋與分類瀏覽
     // ──────────────────────────────────────────────
     async getSearchResults(
         query: SearchRequest,
         metadata: unknown,
     ): Promise<PagedResults> {
         const page = ((metadata as any)?.page ?? 1) as number;
-        const keyword = query.title ?? "";
-        console.log(
-            `${TAG} getSearchResults: keyword="${keyword}" page=${page}`,
-        );
+        console.log(`${TAG} getSearchResults: page=${page}`);
 
         try {
-            const url = keyword
-                ? `${BASE_URL}/search/?k=${encodeURIComponent(keyword)}&p=${page}`
-                : buildListUrl(page);
+            let url: string;
+
+            // 1. 處理分類標籤搜尋 (例如點擊了 "t175")
+            if (query.includedTags && query.includedTags.length > 0) {
+                const tagId = query.includedTags[0].id; // 取得 "t175"
+                console.log(`${TAG} 正在瀏覽分類: ${tagId}`);
+
+                // 組裝分類頁面的 URL。第一頁通常沒有 ?p=，第二頁開始有
+                if (page === 1) {
+                    url = `${BASE_URL}/album/${tagId}/`;
+                } else {
+                    url = `${BASE_URL}/album/${tagId}/?p=${page}`; // 或是 /album/${tagId}/${page}.html 視該網站實際的翻頁規則而定
+                }
+            }
+            // 2. 處理關鍵字搜尋
+            else if (query.title) {
+                console.log(`${TAG} 正在搜尋關鍵字: ${query.title}`);
+                url = `${BASE_URL}/search/?k=${encodeURIComponent(query.title)}&p=${page}`;
+            }
+            // 3. 預設列表 (Fallback)
+            else {
+                url = buildListUrl(page);
+            }
 
             const request: Request = App.createRequest({ url, method: "GET" });
             const response = await this.requestManager.schedule(request, 1);
+
+            // ★ 你提供的 HTML 結構 (<ul class="picpos_6_1..."><li class="min-h-imgall_300">)
+            // 看起來跟你原本首頁的結構是一樣的，所以可以直接共用 parseAlbumList！
             const items = parseAlbumList(response.data);
             console.log(
-                `${TAG} getSearchResults: parsed ${items.length} items`,
+                `${TAG} getSearchResults: parsed ${items.length} items from URL: ${url}`,
             );
 
             return App.createPagedResults({
