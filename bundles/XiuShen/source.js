@@ -22455,9 +22455,10 @@ class XiuShen extends types_1.Source {
     // Cloudflare Bypass（讓 app 先取得 cookie）
     // ──────────────────────────────────────────────
     async getCloudflareBypassRequestAsync() {
-        console.log(`${TAG} getCloudflareBypassRequestAsync: 對圖片伺服器取得 CF cookie`);
+        console.log(`${TAG} getCloudflareBypassRequestAsync: 針對圖床取得 CF cookie`);
         return App.createRequest({
-            url: BASE_URL,
+            // ★ 關鍵：直接請求一張確定存在的圖片，強迫 Cloudflare 對圖床網域進行驗證
+            url: "https://img.xsnvshen.com/thumb_600x900/album/0/45581/000.jpg",
             method: "GET",
             headers: {
                 "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) " +
