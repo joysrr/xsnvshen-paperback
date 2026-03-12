@@ -22202,7 +22202,7 @@ const parser_1 = require("./parser");
 const BASE_URL = "https://www.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.5",
+    version: "1.0.6",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
