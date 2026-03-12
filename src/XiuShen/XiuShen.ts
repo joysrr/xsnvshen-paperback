@@ -17,6 +17,7 @@ import {
 import {
     CategoryTree,
     parseTags,
+    parseCategories,
     parseCategoryTree,
     parseAlbumList,
     parseAlbumDetail,
@@ -147,18 +148,43 @@ export class XiuShen extends Source {
             ]);
 
             // 填充最新套圖
-            latestSection.items = parseAlbumList(latestRes.data)
-                .slice(0, 10)
-                .map((i) =>
+            latestSection.items = parseAlbumList(latestRes.data).map((i) =>
+                App.createPartialSourceManga({
+                    mangaId: i.id,
+                    image: i.cover,
+                    title: i.title,
+                }),
+            );
+            sectionCallback(latestSection);
+
+            // 分類
+            const categories = parseCategories(navRes.data);
+            for (let index = 0; index < categories.length; index++) {
+                const section = App.createHomeSection({
+                    id: `category_${index}`,
+                    title: categories[index].label,
+                    type: "singleRowNormal",
+                    containsMoreItems: true,
+                });
+                sectionCallback(section);
+
+                const categoryResponse = await this.requestManager.schedule(
+                    App.createRequest({
+                        url: `${BASE_URL}/album/${categories[index].id}/`,
+                        method: "GET",
+                    }),
+                    1,
+                );
+                section.items = parseAlbumList(categoryResponse.data).map((i) =>
                     App.createPartialSourceManga({
                         mangaId: i.id,
                         image: i.cover,
                         title: i.title,
                     }),
                 );
-            sectionCallback(latestSection);
+                sectionCallback(section);
+            }
 
-            // ★ 分離邏輯：解析 → 建立 → 顯示
             const categoryTree = parseCategoryTree(navRes.data);
             const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
 

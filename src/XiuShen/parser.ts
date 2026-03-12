@@ -98,7 +98,7 @@ export function parseCategories(
     );
 
     console.log(`手機版 parseCategories: 找到 ${categories.length} 個分類`);
-    return categories.slice(0, 20); // 最多 20 個，避免首頁塞太多
+    return categories;
 }
 
 //解析標籤

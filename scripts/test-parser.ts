@@ -78,7 +78,6 @@ async function main() {
     try {
         console.log("=== 測試分類頁 ===");
         const categoriesHtml = await fetch(BASE_URL + "/album");
-        parseCategoryTree(categoriesHtml);
         console.log("HTML 大小:", categoriesHtml.length, "bytes");
 
         const $categories = cheerio.load(categoriesHtml);
@@ -89,6 +88,20 @@ async function main() {
         );
 
         const categories = parseCategories(categoriesHtml);
+        for (let i = 0; i < categories.length; i++) {
+            console.log(
+                `${i + 1}. ${categories[i].label} (${categories[i].id})`,
+            );
+
+            const categoryUrl = `${BASE_URL}/album/${categories[i].id}/`;
+            const categoryHtml = await fetch(categoryUrl);
+            const items = parseAlbumList(categoryHtml);
+            console.log(`  找到 ${items.length} 個套圖`);
+            items.forEach((item, idx) => {
+                console.log(`  ${idx + 1}. ${item.title} (${item.id}`);
+            });
+        }
+
         console.log(`找到 ${categories.length} 個分類`);
         if (categories.length === 0) {
             console.error("❌ parseCategories selector 失敗！");

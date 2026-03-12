@@ -22291,15 +22291,33 @@ class XiuShen extends types_1.Source {
                 }), 1), // ★ 正確的分類頁
             ]);
             // 填充最新套圖
-            latestSection.items = (0, parser_1.parseAlbumList)(latestRes.data)
-                .slice(0, 10)
-                .map((i) => App.createPartialSourceManga({
+            latestSection.items = (0, parser_1.parseAlbumList)(latestRes.data).map((i) => App.createPartialSourceManga({
                 mangaId: i.id,
                 image: i.cover,
                 title: i.title,
             }));
             sectionCallback(latestSection);
-            // ★ 分離邏輯：解析 → 建立 → 顯示
+            // 分類
+            const categories = (0, parser_1.parseCategories)(navRes.data);
+            for (let index = 0; index < categories.length; index++) {
+                const section = App.createHomeSection({
+                    id: `category_${index}`,
+                    title: categories[index].label,
+                    type: "singleRowNormal",
+                    containsMoreItems: true,
+                });
+                sectionCallback(section);
+                const categoryResponse = await this.requestManager.schedule(App.createRequest({
+                    url: `${BASE_URL}/album/${categories[index].id}/`,
+                    method: "GET",
+                }), 1);
+                section.items = (0, parser_1.parseAlbumList)(categoryResponse.data).map((i) => App.createPartialSourceManga({
+                    mangaId: i.id,
+                    image: i.cover,
+                    title: i.title,
+                }));
+                sectionCallback(section);
+            }
             const categoryTree = (0, parser_1.parseCategoryTree)(navRes.data);
             const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
             categorySections.forEach((section) => sectionCallback(section));
@@ -22662,7 +22680,7 @@ function parseCategories(html) {
         }
     });
     console.log(`手機版 parseCategories: 找到 ${categories.length} 個分類`);
-    return categories.slice(0, 20); // 最多 20 個，避免首頁塞太多
+    return categories;
 }
 exports.parseCategories = parseCategories;
 //解析標籤
