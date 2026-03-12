@@ -24,7 +24,7 @@ import {
 const BASE_URL = "https://www.xsnvshen.com";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.1",
+    version: "1.0.2",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -50,24 +50,17 @@ export class XiuShen extends Source {
         requestTimeout: 15000,
         interceptor: {
             interceptRequest: async (request) => {
-                // 判斷是否為圖片請求 (包含圖床網域或副檔名)
                 const isImage =
                     request.url.includes("img.xsnvshen.com") ||
                     request.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 
-                // 更新成較新的 iOS 17 User-Agent，降低被 CF 攔截的機率
-                const modernUA =
-                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
-
                 request.headers = {
                     ...(request.headers ?? {}),
-                    "User-Agent": modernUA,
                     "Accept-Language": "zh-TW,zh;q=0.9",
                     Referer: BASE_URL + "/",
                     Connection: "keep-alive",
                 };
 
-                // 根據請求類型給予正確的 Accept
                 if (isImage) {
                     request.headers["Accept"] =
                         "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
@@ -370,15 +363,8 @@ export class XiuShen extends Source {
             `${TAG} getCloudflareBypassRequestAsync: 針對圖床取得 CF cookie`,
         );
         return App.createRequest({
-            // ★ 關鍵：直接請求一張確定存在的圖片，強迫 Cloudflare 對圖床網域進行驗證
             url: "https://img.xsnvshen.com/thumb_600x900/album/0/45581/000.jpg",
             method: "GET",
-            headers: {
-                "User-Agent":
-                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) " +
-                    "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
-                    "Version/17.2 Mobile/15E148 Safari/604.1",
-            },
         });
     }
 }
