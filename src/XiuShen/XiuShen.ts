@@ -15,20 +15,21 @@ import {
 } from "@paperback/types";
 
 import {
+    CategoryTree,
     parseTags,
-    parseCategories,
+    parseCategoryTree,
     parseAlbumList,
     parseAlbumDetail,
     buildListUrl,
     buildDetailUrl,
 } from "./parser";
 
-const BASE_URL = "https://www.xsnvshen.com";
+const BASE_URL = "https://m.xsnvshen.com";
 const USER_AGENT =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.7",
+    version: "1.0.8",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -122,9 +123,6 @@ export class XiuShen extends Source {
     async getHomePageSections(
         sectionCallback: (section: HomeSection) => void,
     ): Promise<void> {
-        console.log(`${TAG} getHomePageSections: start`);
-
-        // ★ 1. 先顯示載入中的最新套圖
         const latestSection = App.createHomeSection({
             id: "latest",
             title: "最新套圖",
@@ -133,53 +131,67 @@ export class XiuShen extends Source {
         });
         sectionCallback(latestSection);
 
-        // ★ 2. 動態載入分類區塊
-        const categorySection = App.createHomeSection({
-            id: "categories",
-            title: "📂 套圖分類",
-            type: "singleRowSquare",
-            containsMoreItems: false, // 分類區不需要無限滾動
-        });
-        sectionCallback(categorySection);
-
         try {
-            // 載入最新套圖
-            const latestResponse = await this.requestManager.schedule(
-                App.createRequest({ url: buildListUrl(1), method: "GET" }),
-                1,
-            );
-            const latestItems = parseAlbumList(latestResponse.data);
-            latestSection.items = latestItems.map((item) =>
-                App.createPartialSourceManga({
-                    mangaId: item.id,
-                    image: item.cover,
-                    title: item.title,
-                }),
-            );
+            const [latestRes, navRes] = await Promise.all([
+                this.requestManager.schedule(
+                    App.createRequest({ url: buildListUrl(1), method: "GET" }),
+                    1,
+                ),
+                this.requestManager.schedule(
+                    App.createRequest({
+                        url: BASE_URL + "/album",
+                        method: "GET",
+                    }),
+                    1,
+                ), // ★ 正確的分類頁
+            ]);
+
+            // 填充最新套圖
+            latestSection.items = parseAlbumList(latestRes.data)
+                .slice(0, 10)
+                .map((i) =>
+                    App.createPartialSourceManga({
+                        mangaId: i.id,
+                        image: i.cover,
+                        title: i.title,
+                    }),
+                );
             sectionCallback(latestSection);
 
-            // 載入分類資料
-            const navResponse = await this.requestManager.schedule(
-                App.createRequest({ url: BASE_URL, method: "GET" }),
-                1,
-            );
-            const hotCategories = parseCategories(navResponse.data); // 你現有的 parseTags
+            // ★ 分離邏輯：解析 → 建立 → 顯示
+            const categoryTree = parseCategoryTree(navRes.data);
+            const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
 
-            categorySection.items = hotCategories.map((tag) =>
+            categorySections.forEach((section) => sectionCallback(section));
+        } catch (e) {
+            console.error(`${TAG} ERROR:`, e);
+        }
+    }
+
+    // ★ 從分類樹建立 HomeSection 陣列
+    createCategorySections(categoryTree: CategoryTree[]): HomeSection[] {
+        const sections: HomeSection[] = [];
+
+        categoryTree.forEach((category, index) => {
+            const section = App.createHomeSection({
+                id: `category_${index}_${category.id}`,
+                title: category.name,
+                type: "singleRowSquare",
+                containsMoreItems: true,
+            });
+
+            section.items = category.smallCategories.map((cat) =>
                 App.createPartialSourceManga({
-                    mangaId: tag.id,
-                    image: `${BASE_URL}/album/${tag.id}/icon.jpg`, // 可選，自訂封面
-                    title: tag.label,
+                    mangaId: cat.id,
+                    image: `${BASE_URL}/favicon.ico`, // 或自訂圖示
+                    title: cat.label,
                 }),
             );
-            sectionCallback(categorySection);
 
-            console.log(
-                `${TAG} 分類區塊載入 ${categorySection.items.length} 個分類`,
-            );
-        } catch (e) {
-            console.error(`${TAG} getHomePageSections ERROR:`, e);
-        }
+            sections.push(section);
+        });
+
+        return sections;
     }
 
     // ──────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { TagSection } from "@paperback/types";
+import { HomeSection, TagSection } from "@paperback/types";
 import * as cheerio from "cheerio";
 
 export interface AlbumItem {
@@ -16,12 +16,59 @@ export interface AlbumDetail {
     totalPages: number;
 }
 
-const BASE_URL = "https://www.xsnvshen.com";
+const BASE_URL = "https://m.xsnvshen.com";
 
 function fixUrl(url: string): string {
     if (!url) return "";
     if (url.startsWith("//")) return "https:" + url;
     return url;
+}
+
+// ★ 純解析：回傳分類樹狀結構
+export interface CategoryTree {
+    name: string; // "着装", "风格"
+    id: string; // "picl_1", "picl_2"
+    smallCategories: Array<{ id: string; label: string }>;
+}
+
+export function parseCategoryTree(html: string): CategoryTree[] {
+    const $ = cheerio.load(html);
+    const bigCategories: CategoryTree[] = [];
+
+    // 解析大分類 tab
+    $(".Lnavlists .sort-nav-item").each((index, tabElem) => {
+        const name = $(tabElem).attr("title") || $(tabElem).text().trim();
+        const id = $(tabElem).attr("tab");
+
+        console.log(`大分類 [${id}]: ${name}`);
+        if (!name || !id) return;
+
+        const smallCategories: Array<{ id: string; label: string }> = [];
+
+        // 對應的小分類
+        $(`#${id} .sort-item-box-inner a[href^='/album/']`).each((_, aElem) => {
+            const href = $(aElem).attr("href") || "";
+            const label =
+                $(aElem).find(".spimgtit").text().trim() ||
+                $(aElem).attr("title") ||
+                $(aElem).text().trim();
+
+            const match = href.match(/\/album\/([^\/]+)\/?$/);
+            if (match && match[1] && label) {
+                smallCategories.push({ id: match[1], label });
+                console.log(
+                    `  小分類 ${smallCategories.length}: ${label} (${match[1]})`,
+                );
+            }
+        });
+
+        bigCategories.push({ name, id, smallCategories });
+    });
+
+    console.log(
+        `總共 ${bigCategories.length} 個大分類，${bigCategories.reduce((sum, c) => sum + c.smallCategories.length, 0)} 個小分類`,
+    );
+    return bigCategories;
 }
 
 // 解析分類
@@ -31,17 +78,27 @@ export function parseCategories(
     const $ = cheerio.load(html);
     const categories: Array<{ id: string; label: string }> = [];
 
-    $("#m_album .navigation-down-inner dl dd a").each((_, aElem) => {
-        const href = $(aElem).attr("href") || "";
-        const label = $(aElem).text().trim();
+    // ★ 新手機版 selector：.Lnavlists .sort-item-box a
+    // 直接抓所有 <a href='/album/tXXX/'> 標籤
+    $(".Lnavlists a[href^='/album/']:not([href='/album/'])").each(
+        (_, aElem) => {
+            const href = $(aElem).attr("href") || "";
+            const label =
+                $(aElem).find(".spimgtit").text().trim() ||
+                $(aElem).text().trim();
+            // 提取 ID：/album/t167/ → t167
+            const match = href.match(/\/album\/([^\/]+)\/?$/);
+            if (match && match[1] && label) {
+                categories.push({
+                    id: match[1],
+                    label: label,
+                });
+            }
+        },
+    );
 
-        const match = href.match(/\/album\/([^\/]+)\//);
-        if (match && label) {
-            categories.push({ id: match[1], label });
-        }
-    });
-
-    return categories.slice(0, 12); // 最多 12 個
+    console.log(`手機版 parseCategories: 找到 ${categories.length} 個分類`);
+    return categories.slice(0, 20); // 最多 20 個，避免首頁塞太多
 }
 
 //解析標籤

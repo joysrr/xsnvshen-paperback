@@ -22199,10 +22199,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.XiuShen = exports.XiuShenInfo = void 0;
 const types_1 = require("@paperback/types");
 const parser_1 = require("./parser");
-const BASE_URL = "https://www.xsnvshen.com";
+const BASE_URL = "https://m.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.7",
+    version: "1.0.8",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -22275,8 +22275,6 @@ class XiuShen extends types_1.Source {
     // 首頁
     // ──────────────────────────────────────────────
     async getHomePageSections(sectionCallback) {
-        console.log(`${TAG} getHomePageSections: start`);
-        // ★ 1. 先顯示載入中的最新套圖
         const latestSection = App.createHomeSection({
             id: "latest",
             title: "最新套圖",
@@ -22284,38 +22282,50 @@ class XiuShen extends types_1.Source {
             containsMoreItems: true,
         });
         sectionCallback(latestSection);
-        // ★ 2. 動態載入分類區塊
-        const categorySection = App.createHomeSection({
-            id: "categories",
-            title: "📂 套圖分類",
-            type: "singleRowSquare",
-            containsMoreItems: false, // 分類區不需要無限滾動
-        });
-        sectionCallback(categorySection);
         try {
-            // 載入最新套圖
-            const latestResponse = await this.requestManager.schedule(App.createRequest({ url: (0, parser_1.buildListUrl)(1), method: "GET" }), 1);
-            const latestItems = (0, parser_1.parseAlbumList)(latestResponse.data);
-            latestSection.items = latestItems.map((item) => App.createPartialSourceManga({
-                mangaId: item.id,
-                image: item.cover,
-                title: item.title,
+            const [latestRes, navRes] = await Promise.all([
+                this.requestManager.schedule(App.createRequest({ url: (0, parser_1.buildListUrl)(1), method: "GET" }), 1),
+                this.requestManager.schedule(App.createRequest({
+                    url: BASE_URL + "/album",
+                    method: "GET",
+                }), 1), // ★ 正確的分類頁
+            ]);
+            // 填充最新套圖
+            latestSection.items = (0, parser_1.parseAlbumList)(latestRes.data)
+                .slice(0, 10)
+                .map((i) => App.createPartialSourceManga({
+                mangaId: i.id,
+                image: i.cover,
+                title: i.title,
             }));
             sectionCallback(latestSection);
-            // 載入分類資料
-            const navResponse = await this.requestManager.schedule(App.createRequest({ url: BASE_URL, method: "GET" }), 1);
-            const hotCategories = (0, parser_1.parseCategories)(navResponse.data); // 你現有的 parseTags
-            categorySection.items = hotCategories.map((tag) => App.createPartialSourceManga({
-                mangaId: tag.id,
-                image: `${BASE_URL}/album/${tag.id}/icon.jpg`,
-                title: tag.label,
-            }));
-            sectionCallback(categorySection);
-            console.log(`${TAG} 分類區塊載入 ${categorySection.items.length} 個分類`);
+            // ★ 分離邏輯：解析 → 建立 → 顯示
+            const categoryTree = (0, parser_1.parseCategoryTree)(navRes.data);
+            const categorySections = this.createCategorySections(categoryTree); // 6 區塊，每區 8 個
+            categorySections.forEach((section) => sectionCallback(section));
         }
         catch (e) {
-            console.error(`${TAG} getHomePageSections ERROR:`, e);
+            console.error(`${TAG} ERROR:`, e);
         }
+    }
+    // ★ 從分類樹建立 HomeSection 陣列
+    createCategorySections(categoryTree) {
+        const sections = [];
+        categoryTree.forEach((category, index) => {
+            const section = App.createHomeSection({
+                id: `category_${index}_${category.id}`,
+                title: category.name,
+                type: "singleRowSquare",
+                containsMoreItems: true,
+            });
+            section.items = category.smallCategories.map((cat) => App.createPartialSourceManga({
+                mangaId: cat.id,
+                image: `${BASE_URL}/favicon.ico`,
+                title: cat.label,
+            }));
+            sections.push(section);
+        });
+        return sections;
     }
     // ──────────────────────────────────────────────
     // 載入更多
@@ -22593,9 +22603,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = exports.parseCategories = void 0;
+exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = exports.parseCategories = exports.parseCategoryTree = void 0;
 const cheerio = __importStar(require("cheerio"));
-const BASE_URL = "https://www.xsnvshen.com";
+const BASE_URL = "https://m.xsnvshen.com";
 function fixUrl(url) {
     if (!url)
         return "";
@@ -22603,19 +22613,56 @@ function fixUrl(url) {
         return "https:" + url;
     return url;
 }
+function parseCategoryTree(html) {
+    const $ = cheerio.load(html);
+    const bigCategories = [];
+    // 解析大分類 tab
+    $(".Lnavlists .sort-nav-item").each((index, tabElem) => {
+        const name = $(tabElem).attr("title") || $(tabElem).text().trim();
+        const id = $(tabElem).attr("tab");
+        console.log(`大分類 [${id}]: ${name}`);
+        if (!name || !id)
+            return;
+        const smallCategories = [];
+        // 對應的小分類
+        $(`#${id} .sort-item-box-inner a[href^='/album/']`).each((_, aElem) => {
+            const href = $(aElem).attr("href") || "";
+            const label = $(aElem).find(".spimgtit").text().trim() ||
+                $(aElem).attr("title") ||
+                $(aElem).text().trim();
+            const match = href.match(/\/album\/([^\/]+)\/?$/);
+            if (match && match[1] && label) {
+                smallCategories.push({ id: match[1], label });
+                console.log(`  小分類 ${smallCategories.length}: ${label} (${match[1]})`);
+            }
+        });
+        bigCategories.push({ name, id, smallCategories });
+    });
+    console.log(`總共 ${bigCategories.length} 個大分類，${bigCategories.reduce((sum, c) => sum + c.smallCategories.length, 0)} 個小分類`);
+    return bigCategories;
+}
+exports.parseCategoryTree = parseCategoryTree;
 // 解析分類
 function parseCategories(html) {
     const $ = cheerio.load(html);
     const categories = [];
-    $("#m_album .navigation-down-inner dl dd a").each((_, aElem) => {
+    // ★ 新手機版 selector：.Lnavlists .sort-item-box a
+    // 直接抓所有 <a href='/album/tXXX/'> 標籤
+    $(".Lnavlists a[href^='/album/']:not([href='/album/'])").each((_, aElem) => {
         const href = $(aElem).attr("href") || "";
-        const label = $(aElem).text().trim();
-        const match = href.match(/\/album\/([^\/]+)\//);
-        if (match && label) {
-            categories.push({ id: match[1], label });
+        const label = $(aElem).find(".spimgtit").text().trim() ||
+            $(aElem).text().trim();
+        // 提取 ID：/album/t167/ → t167
+        const match = href.match(/\/album\/([^\/]+)\/?$/);
+        if (match && match[1] && label) {
+            categories.push({
+                id: match[1],
+                label: label,
+            });
         }
     });
-    return categories.slice(0, 12); // 最多 12 個
+    console.log(`手機版 parseCategories: 找到 ${categories.length} 個分類`);
+    return categories.slice(0, 20); // 最多 20 個，避免首頁塞太多
 }
 exports.parseCategories = parseCategories;
 //解析標籤
