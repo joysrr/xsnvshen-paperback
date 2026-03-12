@@ -24,6 +24,26 @@ function fixUrl(url: string): string {
     return url;
 }
 
+// 解析分類
+export function parseCategories(
+    html: string,
+): Array<{ id: string; label: string }> {
+    const $ = cheerio.load(html);
+    const categories: Array<{ id: string; label: string }> = [];
+
+    $("#m_album .navigation-down-inner dl dd a").each((_, aElem) => {
+        const href = $(aElem).attr("href") || "";
+        const label = $(aElem).text().trim();
+
+        const match = href.match(/\/album\/([^\/]+)\//);
+        if (match && label) {
+            categories.push({ id: match[1], label });
+        }
+    });
+
+    return categories.slice(0, 12); // 最多 12 個
+}
+
 //解析標籤
 export function parseTags(html: string): TagSection[] {
     const $ = cheerio.load(html);

@@ -16,6 +16,7 @@ import {
 
 import {
     parseTags,
+    parseCategories,
     parseAlbumList,
     parseAlbumDetail,
     buildListUrl,
@@ -27,7 +28,7 @@ const USER_AGENT =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 
 export const XiuShenInfo: SourceInfo = {
-    version: "1.0.6",
+    version: "1.0.7",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -155,31 +156,22 @@ export class XiuShen extends Source {
                     title: item.title,
                 }),
             );
+            sectionCallback(latestSection);
 
             // 載入分類資料
             const navResponse = await this.requestManager.schedule(
                 App.createRequest({ url: BASE_URL, method: "GET" }),
                 1,
             );
-            const tags = parseTags(navResponse.data); // 你現有的 parseTags
-
-            // ★ 從分類標籤中取前 10 個熱門分類，轉成首頁區塊
-            const hotCategories = tags
-                .flatMap(
-                    (section) => section.tags.slice(0, 2), // 每個分類取前 2 個
-                )
-                .slice(0, 10); // 總共最多 10 個
+            const hotCategories = parseCategories(navResponse.data); // 你現有的 parseTags
 
             categorySection.items = hotCategories.map((tag) =>
                 App.createPartialSourceManga({
-                    mangaId: tag.id, // t175
+                    mangaId: tag.id,
                     image: `${BASE_URL}/album/${tag.id}/icon.jpg`, // 可選，自訂封面
-                    title: tag.label, // "内衣"
+                    title: tag.label,
                 }),
             );
-
-            // 重新回調讓介面更新
-            sectionCallback(latestSection);
             sectionCallback(categorySection);
 
             console.log(

@@ -22202,7 +22202,7 @@ const parser_1 = require("./parser");
 const BASE_URL = "https://www.xsnvshen.com";
 const USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
 exports.XiuShenInfo = {
-    version: "1.0.6",
+    version: "1.0.7",
     name: "XiuShen",
     icon: "icon.png",
     author: "LuLuLaLaHaHa",
@@ -22301,20 +22301,15 @@ class XiuShen extends types_1.Source {
                 image: item.cover,
                 title: item.title,
             }));
+            sectionCallback(latestSection);
             // 載入分類資料
             const navResponse = await this.requestManager.schedule(App.createRequest({ url: BASE_URL, method: "GET" }), 1);
-            const tags = (0, parser_1.parseTags)(navResponse.data); // 你現有的 parseTags
-            // ★ 從分類標籤中取前 10 個熱門分類，轉成首頁區塊
-            const hotCategories = tags
-                .flatMap((section) => section.tags.slice(0, 2))
-                .slice(0, 10); // 總共最多 10 個
+            const hotCategories = (0, parser_1.parseCategories)(navResponse.data); // 你現有的 parseTags
             categorySection.items = hotCategories.map((tag) => App.createPartialSourceManga({
                 mangaId: tag.id,
                 image: `${BASE_URL}/album/${tag.id}/icon.jpg`,
-                title: tag.label, // "内衣"
+                title: tag.label,
             }));
-            // 重新回調讓介面更新
-            sectionCallback(latestSection);
             sectionCallback(categorySection);
             console.log(`${TAG} 分類區塊載入 ${categorySection.items.length} 個分類`);
         }
@@ -22598,7 +22593,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = void 0;
+exports.buildDetailUrl = exports.buildListUrl = exports.parseAlbumDetail = exports.parseAlbumList = exports.parseTags = exports.parseCategories = void 0;
 const cheerio = __importStar(require("cheerio"));
 const BASE_URL = "https://www.xsnvshen.com";
 function fixUrl(url) {
@@ -22608,6 +22603,21 @@ function fixUrl(url) {
         return "https:" + url;
     return url;
 }
+// 解析分類
+function parseCategories(html) {
+    const $ = cheerio.load(html);
+    const categories = [];
+    $("#m_album .navigation-down-inner dl dd a").each((_, aElem) => {
+        const href = $(aElem).attr("href") || "";
+        const label = $(aElem).text().trim();
+        const match = href.match(/\/album\/([^\/]+)\//);
+        if (match && label) {
+            categories.push({ id: match[1], label });
+        }
+    });
+    return categories.slice(0, 12); // 最多 12 個
+}
+exports.parseCategories = parseCategories;
 //解析標籤
 function parseTags(html) {
     const $ = cheerio.load(html);
